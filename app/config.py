@@ -32,3 +32,4 @@ class Config:
     # Налаштування Flask
     SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(24))
     MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5 GB ліміт на файли
+    UPLOAD_FOLDER = "uploads"

@@ -38,7 +38,7 @@ python3 -m venv venv source venv/bin/activate #Linux/Mac
 venv\ Scripts\activate #Windows
 
 2. Install dependencies:
-pip install -r requirements. txt
+pip install -r requirements.txt
 
 3. Fill .env file settings:
 OPENAI_ API_KEY=your_key
