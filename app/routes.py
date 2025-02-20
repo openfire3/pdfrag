@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
 from .pdf_processor import PDFProcessor
-from .models import ProcessedPDF
+# from .models import ProcessedPDF
 from .config import Config
 from datetime import datetime
 
@@ -14,6 +14,7 @@ def index():
     """Головна сторінка"""
     # Отримуємо список оброблених PDF
     collections = processor.get_collections()
+    # return render_template('index.html')
     return render_template('index.html', collections=collections)
 
 @bp.route('/upload', methods=['POST'])
@@ -33,18 +34,18 @@ def upload_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         file.save(filepath)
-        
+        print(f"Файл {file.filename} готовий до завантаження")
         # Обробка PDF
         collection_name = processor.process_pdf(filepath)
         
         # Зберігаємо інформацію про оброблений PDF
-        pdf_info = ProcessedPDF(
-            filename=filename,
-            collection_name=collection_name,
-            created_at=datetime.now(),
-            pages_count=len(PyPDF2.PdfReader(filepath).pages),
-            size_bytes=os.path.getsize(filepath)
-        )
+        # pdf_info = ProcessedPDF(
+        #     filename=filename,
+        #     collection_name=collection_name,
+        #     created_at=datetime.now(),
+        #     pages_count=len(PyPDF2.PdfReader(filepath).pages),
+        #     size_bytes=os.path.getsize(filepath)
+        # )
         
         return jsonify({
             'success': True,
@@ -59,6 +60,7 @@ def upload_file():
 def query():
     """Обробка запиту до PDF"""
     data = request.get_json()
+    print(f"Отриманий запит: {data.get('query')} по файлу {data.get('collection')}")
     if not data or 'query' not in data or 'collection' not in data:
         return jsonify({'error': 'Невірний запит'}), 400
     
