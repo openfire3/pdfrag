@@ -1,8 +1,11 @@
 from flask import Flask
+from app.routes import bp
+import os
 
 def create_app():
-    app = Flask(__name__)
-    # app.config['MAX_CONTENT_LENGTH'] = 1500 * 1024 * 1024  # 1.5GB
-    # app.config['UPLOAD_FOLDER'] = 'uploads'
+    
+    app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
+    
+    app.register_blueprint(bp)
     
     return app
