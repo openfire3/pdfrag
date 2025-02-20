@@ -11,6 +11,7 @@ History of processed PDFs
 Works with technical drawings and documentation
 
 ### App Structure:
+
 pdfrag/                  # Project root directory
 ├── .env                      # Environment variables (API keys, settings)
 ├── requirements.txt          # Python dependencies
