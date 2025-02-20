@@ -11,25 +11,26 @@ History of processed PDFs
 Works with technical drawings and documentation
 
 ### App Structure:
+pdf_search/                  # project root directory
+├── .env                     # environment variables (api keys, settings)
+├── requirements.txt         # python dependencies
+├── static/                  # static files (css, js)
+│   └── css/
+│       └── style.css        # main stylesheet
+├── templates/               # html templates
+│   └── index.html           # main ui page
+├── logs/                    # logs directory
+│   └── app.log             # application logs
+├── uploads/                 # uploaded pdf files
+├── chunks/                  # temporary split pdf parts
+└── app/                     # main application code
+    ├── __init__.py         # flask app initialization
+    ├── config.py           # app settings
+    ├── models.py           # data models
+    ├── pdf_processor.py    # pdf processing logic
+    ├── routes.py           # api routes
+    └── utils.py            # utility functions
 
-pdfrag/                  # Project root directory
-├── .env                      # Environment variables (API keys, settings)
-├── requirements.txt          # Python dependencies
-├── static/                   # Static files (CSS, JS)
-│   └── css/style.css        # Main stylesheet
-├── templates/                # HTML templates
-│   └── index.html           # Main UI page
-├── logs/                     # Logs directory
-│   └── app.log              # Application logs
-├── uploads/                  # Uploaded PDF files
-├── chunks/                   # Temporary split PDF parts
-└── app/                      # Main application code
-    ├── __init__.py          # Flask app initialization
-    ├── config.py            # App settings
-    ├── models.py            # Data models
-    ├── pdf_processor.py     # PDF processing logic
-    ├── routes.py            # API routes
-    └── utils.py             # Utility functions
 
 ### Setup
 1. Create and activate virtual environment:
