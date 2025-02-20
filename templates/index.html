@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Семантичний Пошук</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">PDF Семантичний Пошук</h1>
+        
+        <!-- Завантаження файлу -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4">Завантажити PDF</h2>
+            <form id="uploadForm" class="space-y-4">
+                <div class="flex items-center space-x-4">
+                    <input type="file" 
+                           accept=".pdf" 
+                           class="border p-2 rounded"
+                           id="pdfFile" 
+                           name="file">
+                    <button type="submit" 
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Завантажити
+                    </button>
+                </div>
+                <div id="uploadStatus" class="text-sm"></div>
+            </form>
+        </div>
+        
+        <!-- Пошук -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4">Пошук</h2>
+            <div class="space-y-4">
+                <select id="collectionSelect" 
+                        class="w-full p-2 border rounded mb-4">
+                    <option value="">Оберіть PDF файл</option>
+                    {% for collection in collections %}
+                    <option value="{{ collection.collection_name }}">
+                        {{ collection.filename }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <textarea id="queryInput" 
+                          class="w-full p-2 border rounded"
+                          rows="3" 
+                          placeholder="Введіть ваш запит..."></textarea>
+                          
+                <button onclick="search()" 
+                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Шукати
+                </button>
+            </div>
+        </div>
+        
+        <!-- Результати -->
+        <div id="results" class="bg-white p-6 rounded-lg shadow-md hidden">
+            <h2 class="text-xl font-semibold mb-4">Результати</h2>
+            <div id="responseText" class="prose"></div>
+        </div>
+    </div>
+
+    <script>
+        // Завантаження файлу
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.getElementById('pdfFile');
+            const statusDiv = document.getElementById('uploadStatus');
+            
+            formData.append('file', fileInput.files[0]);
+            statusDiv.textContent = 'Завантаження...';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.textContent = 'Файл успішно завантажено!';
+                    location.reload(); // Оновлюємо сторінку для оновлення списку
+                } else {
+                    statusDiv.textContent = `Помилка: ${data.error}`;
+                }
+            } catch (error) {
+                statusDiv.textContent = `Помилка: ${error.message}`;
+            }
+        };
+
+        // Пошук
+        async function search() {
+            const collection = document.getElementById('collectionSelect').value;
+            const query = document.getElementById('queryInput').value;
+            const resultsDiv = document.getElementById('results');
+            const responseDiv = document.getElementById('responseText');
+            
+            if (!collection || !query) {
+                alert('Оберіть файл та введіть запит');
+                return;
+            }
+            
+            responseDiv.textContent = 'Шукаємо...';
+            resultsDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query, collection })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseDiv.textContent = data.response;
+                } else {
+                    responseDiv.textContent = `Помилка: ${data.error}`;
+                }
+            } catch (error) {
+                responseDiv.textContent = `Помилка: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
