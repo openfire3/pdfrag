@@ -1,2 +1,3 @@
-# pdfrag
-### kozyavka
+# PDFRAG
+### easy potentially multimodal PDFRAG
+
