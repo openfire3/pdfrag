@@ -11,27 +11,27 @@ History of processed PDFs
 Works with technical drawings and documentation
 
 ### App Structure:
-pdf_search/                  # project root directory
-├── .env                     # environment variables (api keys, settings)
-├── requirements.txt         # python dependencies
-├── static/                  # static files (css, js)
-│   └── css/
-│       └── style.css        # main stylesheet
-├── templates/               # html templates
-│   └── index.html           # main ui page
-├── logs/                    # logs directory
-│   └── app.log             # application logs
-├── uploads/                 # uploaded pdf files
-├── chunks/                  # temporary split pdf parts
-└── app/                     # main application code
-    ├── __init__.py         # flask app initialization
-    ├── config.py           # app settings
-    ├── models.py           # data models
-    ├── pdf_processor.py    # pdf processing logic
-    ├── routes.py           # api routes
-    └── utils.py            # utility functions
 
 
+pdfrag/ # project root directory
+├── .env # environment variables (api keys, settings)
+├── requirements.txt # python dependencies
+├── static/ # static files (css, js)
+│ └── css/
+│ └── style.css # main stylesheet
+├── templates/ # html templates
+│ └── index.html # main ui page
+├── logs/ # logs directory
+│ └── app.log # application logs
+├── uploads/ # uploaded pdf files
+├── chunks/ # temporary split pdf parts
+└── app/ # main application code
+├── init.py # flask app initialization
+├── config.py # app settings
+├── models.py # data models
+├── pdf_processor.py # pdf processing logic
+├── routes.py # api routes
+└── utils.py # utility functions
 ### Setup
 1. Create and activate virtual environment:
 python3 -m venv venv source venv/bin/activate #Linux/Mac
