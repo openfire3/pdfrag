@@ -1,7 +1,6 @@
 import os
 from typing import List, Tuple, Dict, Any, Optional
 import uuid
-import logging
 from pathlib import Path
 from datetime import datetime
 import PyPDF2
@@ -10,8 +9,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from tenacity import retry, stop_after_attempt, wait_exponential
 from .config import Config
+from .logger_config import logger
 
-logger = logging.getLogger(__name__)
 
 class PDFProcessor:
     """Клас для обробки PDF файлів та семантичного пошуку"""
@@ -20,8 +19,10 @@ class PDFProcessor:
         """Ініціалізація процесора"""
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.qdrant_client = QdrantClient(
-            host=Config.QDRANT_HOST,
-            port=Config.QDRANT_PORT
+            # host=Config.QDRANT_HOST,
+            # port=Config.QDRANT_PORT
+            url=Config.QDRANT_PATH,
+            api_key=Config.QDRANT_API_KEY
         )
         
     def get_collections(self) -> List[Dict[str, Any]]:
@@ -57,7 +58,7 @@ class PDFProcessor:
         except Exception:
             return None
 
-    def delete_collection(self, collection_name: str) -> bool:
+    # def delete_collection(self, collection_name: str) -> bool:
         """Видалення колекції"""
         try:
             self.qdrant_client.delete_collection(collection_name)
@@ -69,8 +70,8 @@ class PDFProcessor:
 
     def split_pdf(self, pdf_path: str) -> List[Tuple[str, int, int]]:
         """Розбиття PDF на частини"""
-        chunks_dir = Path(Config.CHUNKS_FOLDER)
-        chunks_dir.mkdir(exist_ok=True)
+        chunks_dir = Path(Config.CHUNKS_FOLDER) / Path(pdf_path).stem
+        chunks_dir.mkdir(parents=True, exist_ok=True)
         chunks = []
         
         try:
@@ -118,17 +119,17 @@ class PDFProcessor:
         logger.info(f"Початок обробки файлу {pdf_path.name} (розмір: {file_size/1024/1024:.2f} MB)")
         
         # Створення унікальної назви колекції
-        collection_name = f"pdf_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
+        collection_name = f"pdf123_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
         
         # Створення колекції в Qdrant
-        if not self.qdrant_client.collection_exists(collection_name):
-            self.qdrant_client.create_collection(
-                collection_name=collection_name,
-                vectors_config=models.VectorParams(
-                    size=1536,
-                    distance=models.Distance.COSINE
-                )
+        # if not self.qdrant_client.collection_exists(collection_name):
+        self.qdrant_client.create_collection(
+            collection_name=collection_name,
+            vectors_config=models.VectorParams(
+                size=1536,
+                distance=models.Distance.COSINE
             )
+        )
         
         # Отримання інформації про PDF
         with open(pdf_path, 'rb') as file:
@@ -148,11 +149,12 @@ class PDFProcessor:
         for chunk_path, start_page, end_page in chunks:
             with open(chunk_path, 'rb') as chunk_file:
                 reader = PyPDF2.PdfReader(chunk_file)
+                logger.info(f"Створюємо ембедінг для чанку {chunk_path}")   
                 for page_num, page in enumerate(reader.pages, start=start_page):
                     text = page.extract_text()
                     if not text.strip():
                         continue
-                        
+                     
                     # Обробка тексту та створення ембедінгу
                     embedding = self.get_embedding(text)
                     
@@ -203,8 +205,7 @@ class PDFProcessor:
                 messages=[
                     {
                         "role": "system",
-                        "content": "Ти є експертом з аналізу технічної документації та креслень. "
-                                 "Надавай точні та конкретні відповіді на основі наданого контексту."
+                        "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
                     },
                     {
                         "role": "user",

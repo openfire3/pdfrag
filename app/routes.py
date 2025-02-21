@@ -4,7 +4,8 @@ import os
 from .pdf_processor import PDFProcessor
 # from .models import ProcessedPDF
 from .config import Config
-from datetime import datetime
+# from datetime import datetime
+from .logger_config import logger
 
 bp = Blueprint('main', __name__)
 processor = PDFProcessor()
@@ -34,7 +35,7 @@ def upload_file():
         filename = secure_filename(file.filename)
         filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         file.save(filepath)
-        print(f"Файл {file.filename} готовий до завантаження")
+        logger.info(f"Файл {file.filename} готовий до завантаження")
         # Обробка PDF
         collection_name = processor.process_pdf(filepath)
         
@@ -60,7 +61,7 @@ def upload_file():
 def query():
     """Обробка запиту до PDF"""
     data = request.get_json()
-    print(f"Отриманий запит: {data.get('query')} по файлу {data.get('collection')}")
+    logger.info(f"Отриманий запит: {data.get('query')} по файлу {data.get('collection')}")
     if not data or 'query' not in data or 'collection' not in data:
         return jsonify({'error': 'Невірний запит'}), 400
     
