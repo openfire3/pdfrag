@@ -28,10 +28,12 @@ class Config:
     CHAT_MODEL = "gpt-4o"  # опенаі модель
     
     # Налаштування обробки PDF
-    CHUNK_SIZE = 200
+    CHUNK_SIZE = 50
     MAX_TOKENS = 8000
     
     # Налаштування Flask
     SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(24))
     MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5 GB ліміт на файли
     UPLOAD_FOLDER = "uploads"
+    
+    TOP_K = 5

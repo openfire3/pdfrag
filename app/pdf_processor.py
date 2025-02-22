@@ -13,6 +13,7 @@ from .logger_config import logger
 import tiktoken
 from nltk.tokenize import sent_tokenize
 import nltk
+import re
 
 nltk.download('punkt')
 
@@ -258,41 +259,69 @@ class PDFProcessor:
         logger.info(f"Завершено обробку файлу {pdf_path.name}")
         return collection_name
 
-    def answer_query(self, query: str, collection_name: str, top_k: int = 5) -> str:
+
+    def answer(self, query: str, collection_name: str, page_range_start, page_range_end) -> str:
+        top_k = Config.TOP_K
         """Відповідь на запит"""
         # Отримання ембедінгу запиту
         query_embedding = self.get_embedding(query)
         
+        query_filter = None
+        range_params = {}
+        if page_range_start is not None:
+            range_params["gte"] = page_range_start
+        if page_range_end is not None:
+            range_params["lte"] = page_range_end
+
+        # Добавляем фильтр только если задан хотя бы один параметр
+        if range_params:
+            query_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="page_num",
+                        range=models.Range(**range_params)
+                    )
+                ]
+            )
         # Пошук релевантних фрагментів
         search_results = self.qdrant_client.search(
             collection_name=collection_name,
             query_vector=query_embedding,
+            query_filter=query_filter,  
             limit=top_k
         )
+        logger.info(f"Отримано {len(search_results)} результатів пошуку")
         
         # Формування контексту
         context = "\n\n".join([
-            f"Сторінка {point.payload['page_num']}:\n{point.payload['text']}"
+            # f"Сторінка {point.payload['page_num']}:\n{point.payload['text']}"
+            f"Page number {point.payload['page_num']}:\n{point.payload['text']}"
             for point in search_results
         ])
-        
+        logger.info(f"Контекст: {context}")
         # Генерація відповіді
         try:
+            logger.info(f"Відправляємо запит на генерацію відповіді")
             response = self.client.chat.completions.create(
                 model=Config.CHAT_MODEL,
                 messages=[
                     {
                         "role": "system",
-                        "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
+                        # "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
+                        "content": "You are an expert in analyzing technical documentation and drawings. Provide accurate and specific answers based on the text you can read on pages."
                     },
                     {
                         "role": "user",
-                        "content": f"Контекст:\n{context}\n\nЗапит: {query}\n\n"
-                                 f"Надай детальну відповідь використовуючи тільки інформацію з контексту."
+                        # "content": f"Контекст:\n{context}\n\nЗапит: {query}\n\n"
+                        #          f"Надай детальну відповідь використовуючи тільки інформацію з контексту."
+                        "content": f"Pages:\n{context}\n\nQuery: {query}\n\n"
+                                  f"Provide a detailed answer using only the information from the context.Reply with structured HTML content that will be placed directly in <body> tag , start only from opening container <div> from the very beginning ending with closing </div> tag."
                     }
                 ]
             )
-            return response.choices[0].message.content
+            response_html = response.choices[0].message.content[7:-3]
+            logger.info(f"Отримано відповідь: {response_html}")
+            return response_html
             
         except Exception as e:
             logger.error(f"Помилка при генерації відповіді: {str(e)}")

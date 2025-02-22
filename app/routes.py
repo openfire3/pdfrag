@@ -16,7 +16,7 @@ def index():
     # Отримуємо список оброблених PDF
     collections = processor.get_collections()
     # return render_template('index.html')
-    return render_template('index.html', collections=collections)
+    return render_template('index.html', collections=collections, pages_total=1000)
 
 @bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -66,7 +66,9 @@ def query():
         return jsonify({'error': 'Невірний запит'}), 400
     
     try:
-        response = processor.answer_query(data['query'], data['collection'])
+        range_start = data.get('pageRangeStart') or None
+        range_end = data.get('pageRangeEnd') or None
+        response = processor.answer(data['query'], data['collection'],range_start, range_end)
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
