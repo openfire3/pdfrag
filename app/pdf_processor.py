@@ -10,6 +10,11 @@ from qdrant_client.http import models
 from tenacity import retry, stop_after_attempt, wait_exponential
 from .config import Config
 from .logger_config import logger
+import tiktoken
+from nltk.tokenize import sent_tokenize
+import nltk
+
+nltk.download('punkt')
 
 
 class PDFProcessor:
@@ -17,6 +22,7 @@ class PDFProcessor:
     
     def __init__(self):
         """Ініціалізація процесора"""
+        self.encoder = tiktoken.encoding_for_model(Config.EMBEDDING_MODEL)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.qdrant_client = QdrantClient(
             # host=Config.QDRANT_HOST,
@@ -24,6 +30,59 @@ class PDFProcessor:
             url=Config.QDRANT_PATH,
             api_key=Config.QDRANT_API_KEY
         )
+    
+    def count_tokens(self, text: str) -> int:
+        return len(self.encoder.encode(text))
+    
+    def split_text(self, text: str, max_tokens: int = 8192) -> List[str]:
+        paragraphs = text.split('\n\n')
+        chunks = []
+        current_chunk = []
+        current_length = 0
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            para_tokens = self.count_tokens(para)
+            
+            if para_tokens > max_tokens:
+                logger.info(f"Параграф має більше токенів, ніж ліміт")
+                sentences = sent_tokenize(para)
+                for sentence in sentences:
+                    sentence_tokens = self.count_tokens(sentence)
+                    if current_length + sentence_tokens > max_tokens:
+                        if current_chunk:
+                            chunks.append(' '.join(current_chunk))
+                            current_chunk = []
+                            current_length = 0
+                        if sentence_tokens > max_tokens:
+                            truncated = self.truncate_text(sentence, max_tokens)
+                            chunks.append(truncated)
+                        else:
+                            current_chunk.append(sentence)
+                            current_length += sentence_tokens
+                    else:
+                        current_chunk.append(sentence)
+                        current_length += sentence_tokens
+            else:
+                if current_length + para_tokens > max_tokens:
+                    if current_chunk:
+                        chunks.append(' '.join(current_chunk))
+                        current_chunk = []
+                        current_length = 0
+                current_chunk.append(para)
+                current_length += para_tokens
+
+        if current_chunk:
+            chunks.append(' '.join(current_chunk))
+
+        return chunks
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        tokens = self.encoder.encode(text)[:max_tokens]
+        return self.encoder.decode(tokens)
         
     def get_collections(self) -> List[Dict[str, Any]]:
         """Отримання списку всіх колекцій з метаданими"""
@@ -101,6 +160,7 @@ class PDFProcessor:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def get_embedding(self, text: str) -> List[float]:
+        
         """Отримання ембедінгу тексту"""
         try:
             response = self.client.embeddings.create(
@@ -149,34 +209,52 @@ class PDFProcessor:
         for chunk_path, start_page, end_page in chunks:
             with open(chunk_path, 'rb') as chunk_file:
                 reader = PyPDF2.PdfReader(chunk_file)
+                total_pages = len(reader.pages)
                 logger.info(f"Створюємо ембедінг для чанку {chunk_path}")   
+                
                 for page_num, page in enumerate(reader.pages, start=start_page):
                     text = page.extract_text()
+                    
                     if not text.strip():
                         continue
-                     
-                    # Обробка тексту та створення ембедінгу
-                    embedding = self.get_embedding(text)
                     
-                    # Збереження в Qdrant
-                    point_id = uuid.uuid4().int & ((1 << 64) - 1)
-                    self.qdrant_client.upsert(
-                        collection_name=collection_name,
-                        points=[models.PointStruct(
-                            id=point_id,
-                            vector=embedding,
-                            payload={
-                                'page_num': page_num,
-                                'text': text,
-                                'metadata': metadata
-                            }
-                        )]
-                    )
-                    logger.info(f"Оброблено сторінку {page_num} з {total_pages}")
-            
-            # Видалення тимчасового чанка
-            Path(chunk_path).unlink()
-        
+                    # Разбиваем текст на подчанки при необходимости
+                    token_count = self.count_tokens(text)
+                    if token_count > 8192:
+                        sub_chunks = self.split_text(text)
+                    else:
+                        sub_chunks = [text]
+                    
+                    for chunk_part, chunk_text in enumerate(sub_chunks, 1):
+                        chunk_text = chunk_text.strip()
+                        if not chunk_text:
+                            continue
+                            
+                        # Проверяем размер подчанка
+                        chunk_token_count = self.count_tokens(chunk_text)
+                        if chunk_token_count > 8192:
+                            chunk_text = self.truncate_text(chunk_text, 8192)
+                        
+                        # Создаем эмбеддинг
+                        embedding = self.get_embedding(chunk_text)
+                        
+                        # Сохраняем в Qdrant
+                        point_id = uuid.uuid4().int & ((1 << 64) - 1)
+                        self.qdrant_client.upsert(
+                            collection_name=collection_name,
+                            points=[models.PointStruct(
+                                id=point_id,
+                                vector=embedding,
+                                payload={
+                                    'page_num': page_num,
+                                    'text': chunk_text,
+                                    'chunk_part': chunk_part,
+                                    'total_chunks': len(sub_chunks),
+                                    'metadata': metadata
+                                }
+                            )]
+                        )
+                        logger.info(f"Оброблено частину {chunk_part} сторінки {page_num}: {page_num - start_page + 1} з {total_pages}")
         logger.info(f"Завершено обробку файлу {pdf_path.name}")
         return collection_name
 
