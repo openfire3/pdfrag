@@ -44,8 +44,8 @@
                     <div class="w-1/2">
                         <label for="pageRangeStart" class="block text-sm font-semibold">Початкова сторінка</label>
                         <select id="pageRangeStart" class="w-full p-2 border rounded">
-                            <option value="">Початкова сторінка</option>
-                            {% for i in range(0, pages_total + 1) %}
+                            <option value="1" selected>1</option>
+                            {% for i in range(2, pages_total + 1) %}
                             <option value="{{ i }}">{{ i }}</option>
                             {% endfor %}
                         </select>
@@ -53,8 +53,8 @@
                     <div class="w-1/2">
                         <label for="pageRangeEnd" class="block text-sm font-semibold">Кінцева сторінка</label>
                         <select id="pageRangeEnd" class="w-full p-2 border rounded">
-                            <option value="">Кінцева сторінка</option>
-                            {% for i in range(0, pages_total + 1) %}
+                            <option value="{{pages_total}}" selected>{{pages_total}}</option>
+                            {% for i in range(1, pages_total + 1) %}
                             <option value="{{ i }}">{{ i }}</option>
                             {% endfor %}
                         </select>

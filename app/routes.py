@@ -15,8 +15,8 @@ def index():
     """Головна сторінка"""
     # Отримуємо список оброблених PDF
     collections = processor.get_collections()
-    # return render_template('index.html')
-    return render_template('index.html', collections=collections, pages_total=1000)
+    pages_total = collections[0].get('pages_count')
+    return render_template('index.html', collections=collections, pages_total=pages_total)
 
 @bp.route('/upload', methods=['POST'])
 def upload_file():
