@@ -315,7 +315,19 @@ class PDFProcessor:
                         # "content": f"Контекст:\n{context}\n\nЗапит: {query}\n\n"
                         #          f"Надай детальну відповідь використовуючи тільки інформацію з контексту."
                         "content": f"Pages:\n{context}\n\nQuery: {query}\n\n"
-                                  f"Provide a detailed answer using only the information from the context.Reply with structured HTML content that will be placed directly in <body> tag , start only from opening container <div> from the very beginning ending with closing </div> tag."
+                                  f"Provide a detailed answer using only the information from the context. List pages that were analyzed and don't forget to tell on which pages you found relevant info.. Reply with structured HTML, start only from opening container <div> from the very beginning ending with closing </div> tag."
+                                  f"""Example:
+                                  <div>
+                                  <p>I have recieved and analyzed these pages: 2, 12, 33, ...(list all pages in context)</p>
+                                  <p>On these pages I found relevant info: </p>
+                                  <h3>Page 33</h3>
+                                  <p> There are some ...</p>
+                                  <h3>Page 45</h3>
+                                  <p> Here I found...</p>
+                                  ...
+                                  <hr/>
+                                  <h2>Conclusion</h2>
+                                  <p>There re some...</p>"""
                     }
                 ]
             )

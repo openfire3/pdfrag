@@ -4,22 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Семантичний Пошук</title>
+    <title>PDF Пошук</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-8">PDF Семантичний Пошук</h1>
 
         <!-- Завантаження файлу -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">Завантажити PDF</h2>
+            <h2 class="text-xl font-semibold mb-4">Upload PDF</h2>
             <form id="uploadForm" class="space-y-4">
                 <div class="flex items-center space-x-4">
-                    <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
+                    <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file" >
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Завантажити
+                        Upload
                     </button>
                 </div>
                 <div id="uploadStatus" class="text-sm"></div>
@@ -28,10 +27,10 @@
 
         <!-- Пошук -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">Пошук</h2>
+            <h2 class="text-xl font-semibold mb-4">Choose PDF from uploaded</h2>
             <div class="space-y-4">
                 <select id="collectionSelect" class="w-full p-2 border rounded mb-4">
-                    <option value="">Оберіть PDF файл</option>
+                    <option value="">Choose PDF</option>
                     {% for collection in collections %}
                     <option value="{{ collection.collection_name }}">
                         {{ collection.filename }}
@@ -42,7 +41,7 @@
                 <!-- Page Range Selector -->
                 <div class="flex space-x-4 mb-4">
                     <div class="w-1/2">
-                        <label for="pageRangeStart" class="block text-sm font-semibold">Початкова сторінка</label>
+                        <label for="pageRangeStart" class="block text-sm font-semibold">Start page</label>
                         <select id="pageRangeStart" class="w-full p-2 border rounded">
                             <option value="1" selected>1</option>
                             {% for i in range(2, pages_total + 1) %}
@@ -51,20 +50,20 @@
                         </select>
                     </div>
                     <div class="w-1/2">
-                        <label for="pageRangeEnd" class="block text-sm font-semibold">Кінцева сторінка</label>
+                        <label for="pageRangeEnd" class="block text-sm font-semibold">End page</label>
                         <select id="pageRangeEnd" class="w-full p-2 border rounded">
-                            <option value="{{pages_total}}" selected>{{pages_total}}</option>
-                            {% for i in range(1, pages_total + 1) %}
+                            {% for i in range(1, pages_total) %}
                             <option value="{{ i }}">{{ i }}</option>
                             {% endfor %}
+                            <option value="{{pages_total}}" selected>{{pages_total}}</option>
                         </select>
                     </div>
                 </div>
                 <textarea id="queryInput" class="w-full p-2 border rounded" rows="3"
-                    placeholder="Введіть ваш запит..."></textarea>
+                    placeholder="Enter your request..."></textarea>
 
                 <button onclick="search()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                    Шукати
+                    Search
                 </button>
             </div>
         </div>
