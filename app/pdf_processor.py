@@ -14,9 +14,19 @@ import tiktoken
 from nltk.tokenize import sent_tokenize
 import nltk
 import re
+import psycopg2
+from psycopg2 import sql
+from psycopg2.extras import execute_values
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 nltk.download('punkt')
 
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD")
+}
 
 class PDFProcessor:
     """Клас для обробки PDF файлів та семантичного пошуку"""
@@ -31,7 +41,26 @@ class PDFProcessor:
             url=Config.QDRANT_PATH,
             api_key=Config.QDRANT_API_KEY
         )
+        
+        conn = psycopg2.connect(**DB_CONFIG)
     
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        
+        self.cursor = conn.cursor()
+    
+    def text_search(self, searchWord):
+        query = sql.SQL("SELECT * FROM pdf_pages WHERE content ILIKE %s")
+        self.cursor.execute(query, (f"%{searchWord}%",))
+        rows = self.cursor.fetchall()
+        results = []
+        if rows:
+            for row in rows:
+                id, page_number, content, ts  = row
+                results.append({"page_number": page_number, "text": content})
+        else:
+            logger.info("Записи не знайдені")
+        return results
+        
     def count_tokens(self, text: str) -> int:
         return len(self.encoder.encode(text))
     
@@ -118,16 +147,6 @@ class PDFProcessor:
         except Exception:
             return None
 
-    # def delete_collection(self, collection_name: str) -> bool:
-        """Видалення колекції"""
-        try:
-            self.qdrant_client.delete_collection(collection_name)
-            logger.info(f"Колекцію {collection_name} видалено")
-            return True
-        except Exception as e:
-            logger.error(f"Помилка при видаленні колекції {collection_name}: {str(e)}")
-            return False
-
     def split_pdf(self, pdf_path: str) -> List[Tuple[str, int, int]]:
         """Розбиття PDF на частини"""
         chunks_dir = Path(Config.CHUNKS_FOLDER) / Path(pdf_path).stem
@@ -183,7 +202,6 @@ class PDFProcessor:
         collection_name = f"pdf123_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
         
         # Створення колекції в Qdrant
-        # if not self.qdrant_client.collection_exists(collection_name):
         self.qdrant_client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
@@ -260,45 +278,55 @@ class PDFProcessor:
         return collection_name
 
 
-    def answer(self, query: str, collection_name: str, page_range_start, page_range_end) -> str:
+    def answer(self, query: str, collection_name: str, page_range_start, page_range_end, search_word) -> str:
         top_k = Config.TOP_K
-        """Відповідь на запит"""
-        # Отримання ембедінгу запиту
-        query_embedding = self.get_embedding(query)
-        
-        query_filter = None
-        range_params = {}
-        if page_range_start is not None:
-            range_params["gte"] = page_range_start
-        if page_range_end is not None:
-            range_params["lte"] = page_range_end
+        prompt_start = ""
+        if search_word:
+            text_results = self.text_search(search_word)
+            text_search = "\n\n".join([
+            f"Page number {row['page_number']}:\n{row['text']}"
+            for row in text_results[:top_k]
+            ])
+            prompt_start = f"""Pages: {text_search}.
+            Search for element {search_word}. Most likely you'll find it on each provided page"""
+        else:
+            
+            # Отримання ембедінгу запиту
+            query_embedding = self.get_embedding(query)
+            
+            query_filter = None
+            range_params = {}
+            if page_range_start is not None:
+                range_params["gte"] = page_range_start
+            if page_range_end is not None:
+                range_params["lte"] = page_range_end
 
-        # Добавляем фильтр только если задан хотя бы один параметр
-        if range_params:
-            query_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="page_num",
-                        range=models.Range(**range_params)
-                    )
-                ]
+            # Добавляем фильтр только если задан хотя бы один параметр
+            if range_params:
+                query_filter = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="page_num",
+                            range=models.Range(**range_params)
+                        )
+                    ]
+                )
+            # Пошук релевантних фрагментів
+            search_results = self.qdrant_client.search(
+                collection_name=collection_name,
+                query_vector=query_embedding,
+                query_filter=query_filter,  
+                limit=top_k
             )
-        # Пошук релевантних фрагментів
-        search_results = self.qdrant_client.search(
-            collection_name=collection_name,
-            query_vector=query_embedding,
-            query_filter=query_filter,  
-            limit=top_k
-        )
-        logger.info(f"Отримано {len(search_results)} результатів пошуку")
-        
-        # Формування контексту
-        context = "\n\n".join([
-            # f"Сторінка {point.payload['page_num']}:\n{point.payload['text']}"
-            f"Page number {point.payload['page_num']}:\n{point.payload['text']}"
-            for point in search_results
-        ])
-        logger.info(f"Контекст: {context}")
+            logger.info(f"Отримано {len(search_results)} результатів пошуку")
+            
+            # Формування контексту
+            semantic_search = "\n\n".join([
+                f"Page number {point.payload['page_num']}:\n{point.payload['text']}"
+                for point in search_results
+            ])
+            # logger.info(f"Контекст: {semantic_search}")
+            prompt_start = f"""Pages: {semantic_search}"""
         # Генерація відповіді
         try:
             logger.info(f"Відправляємо запит на генерацію відповіді")
@@ -308,25 +336,25 @@ class PDFProcessor:
                     {
                         "role": "system",
                         # "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
-                        "content": "You are an expert in analyzing technical documentation and drawings. Provide accurate and specific answers based on the text you can read on pages."
+                        "content": "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages from document. Provide accurate and specific answers based on the text you can read on pages."
                     },
                     {
                         "role": "user",
                         # "content": f"Контекст:\n{context}\n\nЗапит: {query}\n\n"
                         #          f"Надай детальну відповідь використовуючи тільки інформацію з контексту."
-                        "content": f"Pages:\n{context}\n\nQuery: {query}\n\n"
+                        "content": f"{prompt_start}\n\nQuery: {query}\n\n"
                                   f"Provide a detailed answer using only the information from the context. List pages that were analyzed and don't forget to tell on which pages you found relevant info.. Reply with structured HTML, start only from opening container <div> from the very beginning ending with closing </div> tag."
                                   f"""Example:
                                   <div>
-                                  <p>I have recieved and analyzed these pages: 2, 12, 33, ...(list all pages in context)</p>
+                                  <p>I have recieved and analyzed these pages: <b>2</b>, <b>12</b>, <b>33</b>, ...(list all pages in context)</p>
                                   <p>On these pages I found relevant info: </p>
-                                  <h3>Page 33</h3>
+                                  <h3><b>Page 33</b></h3>
                                   <p> There are some ...</p>
-                                  <h3>Page 45</h3>
+                                  <h3><b>Page 45</b></h3>
                                   <p> Here I found...</p>
                                   ...
                                   <hr/>
-                                  <h2>Conclusion</h2>
+                                  <h2><b>Conclusion</b></h2>
                                   <p>There re some...</p>"""
                     }
                 ]

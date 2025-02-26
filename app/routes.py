@@ -68,7 +68,9 @@ def query():
     try:
         range_start = data.get('pageRangeStart') or None
         range_end = data.get('pageRangeEnd') or None
-        response = processor.answer(data['query'], data['collection'],range_start, range_end)
+        searchWord = data.get('searchedElement') or None
+        query = data.get('query') or ""
+        response = processor.answer(query, data['collection'],range_start, range_end, searchWord)
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
