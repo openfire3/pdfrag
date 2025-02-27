@@ -16,7 +16,7 @@
             <h2 class="text-xl font-semibold mb-4">Upload PDF</h2>
             <form id="uploadForm" class="space-y-4">
                 <div class="flex items-center space-x-4">
-                    <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file" >
+                    <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                         Upload
                     </button>
@@ -32,7 +32,7 @@
                 <select id="collectionSelect" class="w-full p-2 border rounded mb-4">
                     <option value="">Choose PDF</option>
                     {% for collection in collections %}
-                    <option value="{{ collection.collection_name }}">
+                    <option value="{{ collection.collection_name }}" data-pc="{{ collection.pages_count }}">
                         {{ collection.filename }}
                     </option>
                     {% endfor %}
@@ -43,25 +43,19 @@
                     <div class="w-1/2">
                         <label for="pageRangeStart" class="block text-sm font-semibold">Start page</label>
                         <select id="pageRangeStart" class="w-full p-2 border rounded">
-                            <option value="1" selected>1</option>
-                            {% for i in range(2, pages_total + 1) %}
-                            <option value="{{ i }}">{{ i }}</option>
-                            {% endfor %}
+                            
                         </select>
                     </div>
                     <div class="w-1/2">
                         <label for="pageRangeEnd" class="block text-sm font-semibold">End page</label>
                         <select id="pageRangeEnd" class="w-full p-2 border rounded">
-                            {% for i in range(1, pages_total) %}
-                            <option value="{{ i }}">{{ i }}</option>
-                            {% endfor %}
-                            <option value="{{pages_total}}" selected>{{pages_total}}</option>
+                            
                         </select>
                     </div>
                 </div>
                 <div class="flex items-center whitespace-nowrap gap-4">
                     <label for="searchedElement" class="block text-lg font-semibold">Search for element</label>
-                    <input id="searchedElement" class="w-full p-2 border rounded" placeholder="Type specific element"/>
+                    <input id="searchedElement" class="w-full p-2 border rounded" placeholder="Type specific element" />
                 </div>
                 <textarea id="queryInput" class="w-full p-2 border rounded" rows="3"
                     placeholder="Enter your request..."></textarea>
@@ -118,7 +112,7 @@
             const pageRangeStart = document.getElementById('pageRangeStart').value;
             const pageRangeEnd = document.getElementById('pageRangeEnd').value;
             const searchedElement = document.getElementById('searchedElement').value;
-        
+
 
             responseDiv.textContent = 'Шукаємо...';
             resultsDiv.classList.remove('hidden');
@@ -143,6 +137,38 @@
                 responseDiv.textContent = `Помилка: ${error.message}`;
             }
         }
+
+        document.getElementById('collectionSelect').addEventListener("change", function (e) {
+
+            const pagesCount =  this.options[this.selectedIndex].getAttribute("data-pc");
+
+            let pageRangeStart = document.getElementById("pageRangeStart");
+            pageRangeStart.innerHTML = ""; // Очищаем старые опции
+
+            for (let i = 1; i <= pagesCount; i++) {
+                let option = document.createElement("option");
+                option.value = i;
+                option.textContent = i;
+                if (i === 1) option.selected = true
+                pageRangeStart.appendChild(option);
+            }
+
+            let pageRangeEnd = document.getElementById("pageRangeEnd");
+            pageRangeEnd.innerHTML = ""; // Очищаем старые опции
+
+            for (let i = 1; i <= pagesCount; i++) {
+                let option = document.createElement("option");
+                option.value = i;
+                option.textContent = i;
+                if (i == pagesCount) {
+                    
+                    option.selected = true
+                }
+                pageRangeEnd.appendChild(option);
+            }
+
+            // Здесь можно вызвать AJAX-запрос, обновить страницу или выполнить другое действие
+        });
     </script>
 </body>
 
