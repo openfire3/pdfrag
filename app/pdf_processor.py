@@ -48,8 +48,8 @@ class PDFProcessor:
         
         self.cursor = conn.cursor()
     
-    def text_search(self, searchWord):
-        query = sql.SQL("SELECT * FROM pdf_pages WHERE content ILIKE %s")
+    def text_search(self, db_name, searchWord):
+        query = sql.SQL(f"SELECT * FROM {db_name} WHERE content ILIKE %s")
         self.cursor.execute(query, (f"%{searchWord}%",))
         rows = self.cursor.fetchall()
         results = []
@@ -215,13 +215,23 @@ class PDFProcessor:
             reader = PyPDF2.PdfReader(file)
             total_pages = len(reader.pages)
         
+        pdf_name = Path(pdf_path.name).stem
         # Збереження метаданих
         metadata = {
-            'filename': pdf_path.name,
+            'filename': pdf_name,
             'created_at': datetime.now().isoformat(),
             'pages_count': total_pages,
             'size_bytes': file_size
         }
+        
+        self.cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {collection_name} (
+                    id SERIAL PRIMARY KEY,
+                    page_number INTEGER NOT NULL,
+                    content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
         
         # Обробка чанків
         chunks = self.split_pdf(str(pdf_path))
@@ -273,16 +283,22 @@ class PDFProcessor:
                                 }
                             )]
                         )
+                        self.cursor.execute(
+                            f"INSERT INTO {collection_name} (page_number, content) VALUES (%s, %s)",
+                            (page_num + 1, text)
+                        )
                         logger.info(f"Оброблено частину {chunk_part} сторінки {page_num}: {page_num - start_page + 1} з {total_pages}")
         logger.info(f"Завершено обробку файлу {pdf_path.name}")
         return collection_name
 
 
     def answer(self, query: str, collection_name: str, page_range_start, page_range_end, search_word) -> str:
+        
         top_k = Config.TOP_K
         prompt_start = ""
         if search_word:
-            text_results = self.text_search(search_word)
+            logger.info(f"Текстовий пошук по колекції {collection_name}")
+            text_results = self.text_search(collection_name, search_word)
             text_search = "\n\n".join([
             f"Page number {row['page_number']}:\n{row['text']}"
             for row in text_results[:top_k]
@@ -290,7 +306,8 @@ class PDFProcessor:
             prompt_start = f"""Pages: {text_search}.
             Search for element {search_word}. Most likely you'll find it on each provided page"""
         else:
-            
+            logger.info(f"Семантичний пошук по колекції {collection_name}")
+
             # Отримання ембедінгу запиту
             query_embedding = self.get_embedding(query)
             
