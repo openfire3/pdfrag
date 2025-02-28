@@ -6,6 +6,9 @@ import PyPDF2
 import tiktoken
 from nltk.tokenize import sent_tokenize
 import nltk
+from pdf2image import convert_from_path
+from PIL import Image
+Image.MAX_IMAGE_PIXELS = None
 
 from app.config import Config
 from app.logger_config import logger
@@ -22,20 +25,7 @@ emmedding_service = EmbeddingService()
 class PDFHandler():
     def __init__(self):
         self.encoder = tiktoken.encoding_for_model(Config.EMBEDDING_MODEL)
-        
-    def text_search(self, db_name, searchWord):
-        query = sql.SQL(f"SELECT * FROM {db_name} WHERE content ILIKE %s")
-        self.cursor.execute(query, (f"%{searchWord}%",))
-        rows = self.cursor.fetchall()
-        results = []
-        if rows:
-            for row in rows:
-                id, page_number, content, ts  = row
-                results.append({"page_number": page_number, "text": content})
-        else:
-            logger.info("Записи не знайдені")
-        return results
-        
+
     def count_tokens(self, text: str) -> int:
         return len(self.encoder.encode(text))
     
@@ -53,7 +43,6 @@ class PDFHandler():
             para_tokens = self.count_tokens(para)
             
             if para_tokens > max_tokens:
-                logger.info(f"Параграф має більше токенів, ніж ліміт")
                 sentences = sent_tokenize(para)
                 for sentence in sentences:
                     sentence_tokens = self.count_tokens(sentence)
@@ -90,7 +79,6 @@ class PDFHandler():
         return self.encoder.decode(tokens)
         
     def split_pdf(self, pdf_path: str) -> List[Tuple[str, int, int]]:
-        """Розбиття PDF на частини"""
         chunks_dir = Path(Config.CHUNKS_FOLDER) / Path(pdf_path).stem
         chunks_dir.mkdir(parents=True, exist_ok=True)
         chunks = []
@@ -100,7 +88,6 @@ class PDFHandler():
                 reader = PyPDF2.PdfReader(file)
                 total_pages = len(reader.pages)
                 
-                # Розбиваємо на частини по CHUNK_SIZE сторінок
                 for start in range(0, total_pages, Config.CHUNK_SIZE):
                     writer = PyPDF2.PdfWriter()
                     end = min(start + Config.CHUNK_SIZE, total_pages)
@@ -112,12 +99,12 @@ class PDFHandler():
                     with open(chunk_path, 'wb') as chunk_file:
                         writer.write(chunk_file)
                     chunks.append((str(chunk_path), start+1, end))
-                    logger.info(f"Створено чанк {chunk_path} (сторінки {start+1}-{end})")
+                    logger.info(f"Created chunk {chunk_path} (page {start+1}-{end})")
                 
             return chunks
             
         except Exception as e:
-            logger.error(f"Помилка при розбитті PDF: {str(e)}")
+            logger.error(f"Error splitting PDF: {str(e)}")
             raise
 
     def process_pdf(self, pdf_path: str) -> str:
@@ -132,6 +119,11 @@ class PDFHandler():
         with open(pdf_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             total_pages = len(reader.pages)
+        logger.info(f"Extracting images...")
+        images = convert_from_path(
+            pdf_path
+        )
+        logger.info(f"{len(images)} images succesfully extracted")
         
         pdf_name = Path(pdf_path.name).stem
 
@@ -175,8 +167,8 @@ class PDFHandler():
                         embedding = emmedding_service.get_embedding(chunk_text)
                         
                         vector_db_service.save_point(collection_name, embedding, page_num, chunk_text, chunk_part, len(sub_chunks), metadata)
-                        
-                        sql_db_service.save_record(collection_name, page_num, text)
+                        image_bytes = images[page_num - 1].tobytes()
+                        sql_db_service.save_record(collection_name, page_num, text, image_bytes)
                         
                         logger.info(f"Processed part {chunk_part} of page {page_num}: {page_num - start_page + 1} of {total_pages}")
                         
