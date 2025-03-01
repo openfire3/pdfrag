@@ -12,10 +12,10 @@ class QuadrantService():
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.qdrant_client = QdrantClient(
-            # host=Config.QDRANT_HOST,
-            # port=Config.QDRANT_PORT
-            url=Config.QDRANT_PATH,
-            api_key=Config.QDRANT_API_KEY
+            host=Config.QDRANT_HOST,
+            port=Config.QDRANT_PORT
+            #url=Config.QDRANT_PATH,
+            #api_key=Config.QDRANT_API_KEY
         )
     
     def get_collections(self) -> List[Dict[str, Any]]:
@@ -60,31 +60,39 @@ class QuadrantService():
         logger.info(f"Created collection {collection_name}")
         
     def save_point(self,collection_name,embedding, page_num, chunk_text, chunk_part, total_chunks, metadata):
-        point_id = uuid.uuid4().int & ((1 << 64) - 1)
-        self.qdrant_client.upsert(
-            collection_name=collection_name,
-            points=[models.PointStruct(
-                id=point_id,
-                vector=embedding,
-                payload={
-                    'page_num': page_num,
-                    'text': chunk_text,
-                    'chunk_part': chunk_part,
-                    'total_chunks': total_chunks,
-                    'metadata': metadata
-                }
-            )]
-        )
-        logger.info(f"Created point for page: {page_num}, chunk: {chunk_part}")
+        try:
+            point_id = uuid.uuid4().int & ((1 << 64) - 1)
+            logger.info(f"Adding to vector DB - Collection: {collection_name}, Page: {page_num}, Chunk: {chunk_part}/{total_chunks}")
+            
+            self.qdrant_client.upsert(
+                collection_name=collection_name,
+                points=[models.PointStruct(
+                    id=point_id,
+                    vector=embedding,
+                    payload={
+                        'page_num': page_num,
+                        'text': chunk_text,
+                        'chunk_part': chunk_part,
+                        'total_chunks': total_chunks,
+                        'metadata': metadata
+                    }
+                )]
+            )
+            logger.info(f"Successfully added to Qdrant - Page: {page_num}, Chunk: {chunk_part}/{total_chunks}")
+        except Exception as e:
+            logger.error(f"Error saving to vector DB - Page {page_num}: {str(e)}")
+            raise
         
     def search(self, collection_name, query_embedding, page_range_start, page_range_end, top_k):
         range_params = {}
+        query_filter = None  # Initialize with None by default
+        
         if page_range_start is not None:
             range_params["gte"] = page_range_start
         if page_range_end is not None:
             range_params["lte"] = page_range_end
 
-        # Добавляем фильтр только если задан хотя бы один параметр
+        # Create filter only if we have range parameters
         if range_params:
             query_filter = models.Filter(
                 must=[
@@ -94,10 +102,11 @@ class QuadrantService():
                     )
                 ]
             )
+        
         search_results = self.qdrant_client.search(
             collection_name=collection_name,
             query_vector=query_embedding,
-            query_filter=query_filter,  
+            query_filter=query_filter,  # Now it's always defined
             limit=top_k
         )
         logger.info(f"Found {len(search_results)} results")

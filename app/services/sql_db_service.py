@@ -40,11 +40,16 @@ class DatabaseService:
             logger.error(f"Error creating table {table_name}: {str(e)}")   
     
     def save_record(self, table_name, page_num, text, image):
-        self.cursor.execute(
-            f"INSERT INTO {table_name} (page_number, content, image) VALUES (%s, %s, %s)",
-            (page_num, text, image)
-        )
-        logger.info(f"Added page {page_num} to {table_name}")
+        try:
+            logger.info(f"Adding to PostgreSQL - Table: {table_name}, Page: {page_num}")
+            self.cursor.execute(
+                f"INSERT INTO {table_name} (page_number, content, image) VALUES (%s, %s, %s)",
+                (page_num, text, image)
+            )
+            logger.info(f"Successfully added to PostgreSQL - Table: {table_name}, Page: {page_num}")
+        except Exception as e:
+            logger.error(f"Error saving to PostgreSQL - Table: {table_name}, Page: {page_num}: {str(e)}")
+            raise
         
     def text_search(self, db_name, search_word):
         try:
@@ -61,4 +66,3 @@ class DatabaseService:
             return results
         except Exception as e:
             logger.error(f"Error searching text: {str(e)}")
-    

@@ -1,80 +1,89 @@
 <!DOCTYPE html>
 <html lang="uk">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Пошук</title>
+    <title>PDF Chat Analysis</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-
-        <!-- Завантаження файлу -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">Upload PDF</h2>
-            <form id="uploadForm" class="space-y-4">
-                <div class="flex items-center space-x-4">
-                    <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Upload
-                    </button>
-                </div>
-                <div id="uploadStatus" class="text-sm"></div>
-            </form>
-        </div>
-
-        <!-- Пошук -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-lg font-semibold mb-4">Choose PDF from uploaded</h2>
-            <div class="space-y-4">
-                <select id="collectionSelect" class="w-full p-2 border rounded mb-4">
-                    <option value="">Choose PDF</option>
-                    {% for collection in collections %}
-                    <option value="{{ collection.collection_name }}" data-pc="{{ collection.pages_count }}">
-                        {{ collection.filename }}
-                    </option>
-                    {% endfor %}
-                </select>
-
-                <!-- Page Range Selector -->
-                <div class="flex space-x-4 mb-4">
-                    <div class="w-1/2">
-                        <label for="pageRangeStart" class="block text-sm font-semibold">Start page</label>
-                        <select id="pageRangeStart" class="w-full p-2 border rounded">
-                            
-                        </select>
-                    </div>
-                    <div class="w-1/2">
-                        <label for="pageRangeEnd" class="block text-sm font-semibold">End page</label>
-                        <select id="pageRangeEnd" class="w-full p-2 border rounded">
-                            
-                        </select>
-                    </div>
-                </div>
-                <div class="flex items-center whitespace-nowrap gap-4">
-                    <label for="searchedElement" class="block text-lg font-semibold">Search for element</label>
-                    <input id="searchedElement" class="w-full p-2 border rounded" placeholder="Type specific element" />
-                </div>
-                <textarea id="queryInput" class="w-full p-2 border rounded" rows="3"
-                    placeholder="Enter your request..."></textarea>
-
-                <button onclick="search()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                    Search
-                </button>
+        <!-- Tab Navigation -->
+        <div class="mb-4">
+            <div class="flex border-b">
+                <button class="py-2 px-4 text-blue-500 border-b-2 border-blue-500 tab-btn active" onclick="switchTab('chat')">Chat</button>
+                <button class="py-2 px-4 hover:text-blue-500 tab-btn" onclick="switchTab('system-prompt')">System Prompt</button>
             </div>
         </div>
 
-        <!-- Результати -->
-        <div id="results" class="bg-white p-6 rounded-lg shadow-md hidden">
-            <h2 class="text-xl font-semibold mb-4">Results</h2>
-            <div id="responseText" class="prose"></div>
+        <!-- Chat Tab -->
+        <div id="chat-tab" class="tab-content">
+            <!-- File Upload -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h2 class="text-xl font-semibold mb-4">Upload PDF</h2>
+                <form id="uploadForm" class="space-y-4">
+                    <div class="flex items-center space-x-4">
+                        <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
+                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Upload</button>
+                    </div>
+                    <div id="uploadStatus" class="text-sm"></div>
+                </form>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="mb-4">
+                    <select id="collectionSelect" class="w-full p-2 border rounded mb-4">
+                        <option value="">Choose PDF</option>
+                        {% for collection in collections %}
+                        <option value="{{ collection.collection_name }}" data-pc="{{ collection.pages_count }}">
+                            {{ collection.filename }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Chat Messages -->
+                <div id="chatMessages" class="h-96 overflow-y-auto mb-4 p-4 border rounded">
+                    <div class="space-y-4">
+                        <!-- Messages will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="flex space-x-2">
+                    <input type="text" id="chatInput" class="flex-1 p-2 border rounded" 
+                           placeholder="Ask about the document...">
+                    <button onclick="sendMessage()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Prompt Tab -->
+        <div id="system-prompt-tab" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">System Prompt Configuration</h2>
+                <textarea id="systemPrompt" rows="10" class="w-full p-2 border rounded mb-4"></textarea>
+                <button onclick="updateSystemPrompt()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Update Prompt
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Завантаження файлу
+        // Tab Switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('text-blue-500', 'border-b-2', 'border-blue-500'));
+            
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            event.currentTarget.classList.add('text-blue-500', 'border-b-2', 'border-blue-500');
+        }
+
+        // File Upload
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const formData = new FormData();
@@ -82,7 +91,7 @@
             const statusDiv = document.getElementById('uploadStatus');
 
             formData.append('file', fileInput.files[0]);
-            statusDiv.textContent = 'Завантаження...';
+            statusDiv.textContent = 'Uploading...';
 
             try {
                 const response = await fetch('/upload', {
@@ -91,31 +100,29 @@
                 });
 
                 const data = await response.json();
-
                 if (response.ok) {
-                    statusDiv.textContent = 'Файл успішно завантажено!';
-                    // location.reload(); // Оновлюємо сторінку для оновлення списку
+                    statusDiv.textContent = 'File uploaded successfully!';
+                    location.reload();
                 } else {
-                    statusDiv.textContent = `Помилка: ${data.error}`;
+                    statusDiv.textContent = `Error: ${data.error}`;
                 }
             } catch (error) {
-                statusDiv.textContent = `Помилка: ${error.message}`;
+                statusDiv.textContent = `Error: ${error.message}`;
             }
         };
 
-        // Пошук
-        async function search() {
+        // Chat Functions
+        async function sendMessage() {
             const collection = document.getElementById('collectionSelect').value;
-            const query = document.getElementById('queryInput').value;
-            const resultsDiv = document.getElementById('results');
-            const responseDiv = document.getElementById('responseText');
-            const pageRangeStart = document.getElementById('pageRangeStart').value;
-            const pageRangeEnd = document.getElementById('pageRangeEnd').value;
-            const searchedElement = document.getElementById('searchedElement').value;
+            const input = document.getElementById('chatInput');
+            const query = input.value;
+            const chatMessages = document.getElementById('chatMessages');
 
+            if (!collection || !query) return;
 
-            responseDiv.textContent = 'Шукаємо...';
-            resultsDiv.classList.remove('hidden');
+            // Add user message
+            appendMessage('user', query);
+            input.value = '';
 
             try {
                 const response = await fetch('/query', {
@@ -123,53 +130,58 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ query, collection, pageRangeStart, pageRangeEnd, searchedElement })
+                    body: JSON.stringify({ query, collection })
                 });
 
                 const data = await response.json();
-
                 if (response.ok) {
-                    responseDiv.innerHTML = data.response;
+                    appendMessage('assistant', data.response);
                 } else {
-                    responseDiv.textContent = `Помилка: ${data.error}`;
+                    appendMessage('error', `Error: ${data.error}`);
                 }
             } catch (error) {
-                responseDiv.textContent = `Помилка: ${error.message}`;
+                appendMessage('error', `Error: ${error.message}`);
             }
         }
 
-        document.getElementById('collectionSelect').addEventListener("change", function (e) {
+        function appendMessage(role, content) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `p-3 rounded ${role === 'user' ? 'bg-blue-100 ml-12' : 'bg-gray-100 mr-12'}`;
+            messageDiv.innerHTML = content;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-            const pagesCount =  this.options[this.selectedIndex].getAttribute("data-pc");
+        // System Prompt
+        async function updateSystemPrompt() {
+            const prompt = document.getElementById('systemPrompt').value;
+            try {
+                const response = await fetch('/update_prompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt })
+                });
 
-            let pageRangeStart = document.getElementById("pageRangeStart");
-            pageRangeStart.innerHTML = ""; // Очищаем старые опции
-
-            for (let i = 1; i <= pagesCount; i++) {
-                let option = document.createElement("option");
-                option.value = i;
-                option.textContent = i;
-                if (i === 1) option.selected = true
-                pageRangeStart.appendChild(option);
-            }
-
-            let pageRangeEnd = document.getElementById("pageRangeEnd");
-            pageRangeEnd.innerHTML = ""; // Очищаем старые опции
-
-            for (let i = 1; i <= pagesCount; i++) {
-                let option = document.createElement("option");
-                option.value = i;
-                option.textContent = i;
-                if (i == pagesCount) {
-                    
-                    option.selected = true
+                if (response.ok) {
+                    alert('System prompt updated successfully!');
+                } else {
+                    const data = await response.json();
+                    alert(`Error: ${data.error}`);
                 }
-                pageRangeEnd.appendChild(option);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
             }
+        }
 
-            // Здесь можно вызвать AJAX-запрос, обновить страницу или выполнить другое действие
-        });
+        // Initialize system prompt
+        fetch('/get_prompt')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('systemPrompt').value = data.prompt;
+            });
     </script>
 </body>
-
 </html>

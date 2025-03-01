@@ -6,7 +6,6 @@ import PyPDF2
 import tiktoken
 from nltk.tokenize import sent_tokenize
 import nltk
-from pdf2image import convert_from_path
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 
@@ -15,12 +14,14 @@ from app.logger_config import logger
 from .vector_db_service import QuadrantService
 from .sql_db_service import DatabaseService
 from .embbedding_service import EmbeddingService
+from .image_service import ImageService
 
 nltk.download('punkt')
 
 vector_db_service = QuadrantService()
 sql_db_service = DatabaseService()
 emmedding_service = EmbeddingService()
+image_service = ImageService()
 
 class PDFHandler():
     def __init__(self):
@@ -110,67 +111,83 @@ class PDFHandler():
     def process_pdf(self, pdf_path: str) -> str:
         pdf_path = Path(pdf_path)
         file_size = pdf_path.stat().st_size
-        logger.info(f"Starting process {pdf_path.name} (size: {file_size/1024/1024:.2f} MB)")
+        logger.info(f"=== Starting PDF Processing ===")
+        logger.info(f"File: {pdf_path.name} (size: {file_size/1024/1024:.2f} MB)")
         
         collection_name = f"pdf123_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
         
+        # Step 1: Create Vector DB Collection
+        logger.info("\n=== Step 1: Initializing Vector Database ===")
         vector_db_service.create_collection(collection_name)
 
+        # Step 2: Read PDF and Convert Images
+        logger.info("\n=== Step 2: PDF Image Extraction ===")
         with open(pdf_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             total_pages = len(reader.pages)
-        logger.info(f"Extracting images...")
-        images = convert_from_path(
-            pdf_path
-        )
-        logger.info(f"{len(images)} images succesfully extracted")
-        
-        pdf_name = Path(pdf_path.name).stem
+            logger.info(f"Total pages to process: {total_pages}")
 
+        image_paths = image_service.convert_pdf_pages(str(pdf_path), 1, total_pages)
+        logger.info(f"Image extraction complete: {len(image_paths)} pages processed")
+        
+        # Step 3: Initialize Database
+        logger.info("\n=== Step 3: Initializing PostgreSQL Database ===")
+        pdf_name = Path(pdf_path.name).stem
         metadata = {
             'filename': pdf_name,
             'created_at': datetime.now().isoformat(),
             'pages_count': total_pages,
             'size_bytes': file_size
         }
-        
         sql_db_service.create_table(collection_name)
-
+        
+        # Step 4: Process Content
+        logger.info("\n=== Step 4: Processing Content ===")
         chunks = self.split_pdf(str(pdf_path))
-        for chunk_path, start_page, end_page in chunks:
+        total_chunks = len(chunks)
+        
+        for chunk_idx, (chunk_path, start_page, end_page) in enumerate(chunks, 1):
+            logger.info(f"\nProcessing chunk {chunk_idx}/{total_chunks} (pages {start_page}-{end_page})")
             with open(chunk_path, 'rb') as chunk_file:
                 reader = PyPDF2.PdfReader(chunk_file)
-                total_pages = len(reader.pages)
-                logger.info(f"Creating embedding for chunk {chunk_path}")   
+                chunk_pages = len(reader.pages)
                 
                 for page_num, page in enumerate(reader.pages, start=start_page):
                     text = page.extract_text()
-                    
                     if not text.strip():
+                        logger.info(f"Page {page_num}: No text content to process")
                         continue
 
+                    logger.info(f"\nProcessing page {page_num}/{total_pages}")
                     token_count = self.count_tokens(text)
-                    if token_count > 8192:
-                        sub_chunks = self.split_text(text)
-                    else:
-                        sub_chunks = [text]
+                    sub_chunks = self.split_text(text) if token_count > 8192 else [text]
                     
                     for chunk_part, chunk_text in enumerate(sub_chunks, 1):
                         chunk_text = chunk_text.strip()
                         if not chunk_text:
                             continue
 
-                        chunk_token_count = self.count_tokens(chunk_text)
-                        if chunk_token_count > 8192:
+                        if self.count_tokens(chunk_text) > 8192:
                             chunk_text = self.truncate_text(chunk_text, 8192)
                         
+                        # Add to Vector DB
                         embedding = emmedding_service.get_embedding(chunk_text)
+                        vector_db_service.save_point(
+                            collection_name, 
+                            embedding, 
+                            page_num, 
+                            chunk_text, 
+                            chunk_part, 
+                            len(sub_chunks), 
+                            metadata
+                        )
                         
-                        vector_db_service.save_point(collection_name, embedding, page_num, chunk_text, chunk_part, len(sub_chunks), metadata)
-                        image_bytes = images[page_num - 1].tobytes()
+                        # Add to PostgreSQL
+                        with open(image_paths[page_num - 1], 'rb') as img_file:
+                            image_bytes = img_file.read()
                         sql_db_service.save_record(collection_name, page_num, text, image_bytes)
                         
-                        logger.info(f"Processed part {chunk_part} of page {page_num}: {page_num - start_page + 1} of {total_pages}")
-                        
-        logger.info(f"File processed: {pdf_path.name}")
+        logger.info(f"\n=== PDF Processing Complete ===")
+        logger.info(f"Collection name: {collection_name}")
+        logger.info(f"Total pages processed: {total_pages}")
         return collection_name
