@@ -50,4 +50,4 @@ class Config:
     MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5 GB file limit
     UPLOAD_FOLDER = "uploads"
     
-    TOP_K = 20
+    TOP_K = 3

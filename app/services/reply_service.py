@@ -145,41 +145,32 @@ class ReplyService():
             relevant_pages = []
             if mentioned_pages:
                 relevant_pages.extend(mentioned_pages)
-            
-            # Add semantically relevant pages if we don't have enough
-            semantic_pages = [result.payload['page_num'] for result in reranked_results]
-            for page in semantic_pages:
-                if page not in relevant_pages:
-                    relevant_pages.append(page)
-            
-            # Ensure we don't process too many pages
-            relevant_pages = relevant_pages[:3]
-            logger.info(f"Processing pages: {relevant_pages}")
+                logger.info(f"Using specifically mentioned pages: {mentioned_pages}")
+            else:
+                # Only add semantically relevant pages if no specific pages were mentioned
+                semantic_pages = [result.payload['page_num'] for result in reranked_results]
+                relevant_pages.extend(semantic_pages[:1])  # Take only the most relevant page if none specified
+                logger.info(f"No specific pages mentioned, using most relevant: {relevant_pages}")
             
             # Format and limit text content
-            all_text = self.format_content(semantic_results, self.max_tokens // 2)  # Use half tokens for text
+            all_text = self.format_content(semantic_results, self.max_tokens // 2)
             
-            # Process images for relevant pages
-            analysis_tasks = []
+            # Process images sequentially for relevant pages
+            visual_analyses = []
             for page in relevant_pages:
                 image_path = os.path.join(Config.IMAGES_FOLDER, f'page_{page}.jpg')
                 if os.path.exists(image_path):
                     logger.info(f"Analyzing image for page {page}")
-                    analysis_tasks.append(vision_service.analyze_image(image_path, query))
+                    analysis = await vision_service.analyze_image(image_path, query)
+                    if analysis:
+                        visual_analyses.append(f"Analysis of page {page}:\n{analysis}")
                 else:
                     logger.warning(f"Image not found for page {page}")
-            
-            # Wait for all image analyses to complete
-            visual_analyses = []
-            if analysis_tasks:
-                analyses = await asyncio.gather(*analysis_tasks, return_exceptions=True)
-                # Filter out exceptions and None results
-                visual_analyses = [a for a in analyses if a is not None and not isinstance(a, Exception)]
             
             # Combine and limit visual analysis results
             visual_context = "\n\n".join(visual_analyses) if visual_analyses else ""
             if visual_context:
-                visual_context = self.truncate_to_token_limit(visual_context, self.max_tokens // 4)  # Use quarter tokens for visual
+                visual_context = self.truncate_to_token_limit(visual_context, self.max_tokens // 4)
             
             # Calculate remaining tokens for the prompt
             used_tokens = (

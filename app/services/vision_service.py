@@ -5,6 +5,8 @@ import asyncio
 from app.config import Config
 from app.logger_config import logger
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import traceback
+import json
 
 class VisionService:
     def __init__(self):
@@ -13,10 +15,11 @@ class VisionService:
             logger.warning("Gemini API key not configured. Vision analysis will be disabled.")
             return
             
+        # Using simple float timeout instead of ClientTimeout object
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            timeout=aiohttp.ClientTimeout(total=30)
+            timeout=30.0  # Simple float timeout in seconds
         )
     
     def encode_image(self, image_path):
@@ -33,8 +36,8 @@ class VisionService:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError))
     )
-    async def analyze_single_image(self, image_path: str, question: str) -> str:
-        """Analyze a single image"""
+    async def analyze_image(self, image_path: str, question: str) -> str:
+        """Analyze image using Gemini Vision API"""
         if not self.api_key:
             return "Vision analysis is disabled due to missing Gemini API key."
             
@@ -43,9 +46,10 @@ class VisionService:
             if not base64_image:
                 return None
                 
-            response = await asyncio.wait_for(
-                self.client.chat.completions.create(
-                    model=Config.VISION_MODEL,
+            try:
+                logger.info(f"Starting Gemini analysis for image: {image_path}")
+                response = await self.client.chat.completions.create(
+                    model=Config.VISION_MODEL,  # gemini-2.0-flash
                     messages=[
                         {
                             "role": "system",
@@ -64,17 +68,44 @@ class VisionService:
                             ]
                         }
                     ]
-                ),
-                timeout=20
-            )
-            return response.choices[0].message.content
+                )
+                
+                if not response or not response.choices:
+                    logger.error("Empty response from Gemini API")
+                    return None
+                    
+                response_content = response.choices[0].message.content
+                logger.info(f"Gemini Vision response for {image_path}:\n{response_content}")
+                return response_content
+                    
+            except aiohttp.ClientError as e:
+                error_info = {
+                    'type': type(e).__name__,
+                    'status': getattr(e, 'status', None),
+                    'message': str(e),
+                    'details': getattr(e, 'message', None),
+                }
+                logger.error(f"Gemini API connection error: {json.dumps(error_info, indent=2)}")
+                raise
+                
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout while calling Gemini API (30s limit exceeded)")
+                raise
+                
+            except Exception as e:
+                error_info = {
+                    'type': type(e).__name__,
+                    'traceback': traceback.format_exc(),
+                    'message': str(e)
+                }
+                logger.error(f"Unexpected error during Gemini API call: {json.dumps(error_info, indent=2)}")
+                raise
+                
         except Exception as e:
-            logger.error(f"Error analyzing image {image_path}: {str(e)}")
+            error_info = {
+                'type': type(e).__name__,
+                'message': str(e),
+                'traceback': traceback.format_exc()
+            }
+            logger.error(f"Vision service error: {json.dumps(error_info, indent=2)}")
             return None
-
-    async def analyze_image(self, image_path: str, question: str) -> str:
-        """Main entry point for image analysis"""
-        if not self.api_key:
-            return "Vision analysis is disabled due to missing Gemini API key."
-            
-        return await self.analyze_single_image(image_path, question)
