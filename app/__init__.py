@@ -1,5 +1,6 @@
 from flask import Flask
 import os
+from flask_session import Session
 from .logger_config import logger
 from .routes import bp
 
@@ -7,6 +8,8 @@ def create_app():
     app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
     app.config['PROPAGATE_EXCEPTIONS'] = True  # Ensure async exceptions are properly handled
     app.config['SECRET_KEY'] = os.urandom(24)  # Required for session handling
+    app.config['SESSION_TYPE'] = 'filesystem'  # Store sessions in filesystem
+    Session(app)  # Initialize Flask-Session
     
     # Enable CORS to allow async requests
     @app.after_request
@@ -16,6 +19,6 @@ def create_app():
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
         
-    logger.info("Created Flask application with async support")
+    logger.info("Created Flask application with async+session support")
     app.register_blueprint(bp)
     return app

@@ -21,7 +21,7 @@ class _LoggerSingleton:
         self.log_path = os.path.join(log_dir, log_filename)
 
         # Создаем логгер
-        self.logger = logging.getLogger("project_main_logger")
+        self.logger = logging.getLogger("BES-pdfrag >")
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False  # Отключаем передачу корневому логгеру
 

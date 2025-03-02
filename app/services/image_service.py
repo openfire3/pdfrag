@@ -24,8 +24,8 @@ class ImageService:
             total_pages = end_page - start_page + 1 if start_page and end_page else None
             logger.info(f"Starting PDF conversion of {total_pages} pages from {pdf_path}")
             
-            # Process in batches of 20 pages for better performance
-            BATCH_SIZE = 6
+            # Process in batches of 5 pages for better performance
+            BATCH_SIZE = 3
             image_paths = []
             current_start = start_page if start_page else 1
             
@@ -38,8 +38,8 @@ class ImageService:
                     pdf_path,
                     first_page=current_start,
                     last_page=current_end,
-                    dpi=120,
-                    thread_count=6
+                    dpi=150,
+                    thread_count=3
                 )
                 
                 # Process and save each image in the batch
@@ -50,7 +50,7 @@ class ImageService:
                     # Calculate image scaling if needed
                     width, height = image.size
                     pixel_count = width * height
-                    target_pixel_count = 1024 * 1024 * 4  # ~1MB target
+                    target_pixel_count = 1524 * 1024 * 4  # ~1MB target
                     
                     if pixel_count > target_pixel_count:
                         scale_factor = math.sqrt(target_pixel_count / pixel_count)

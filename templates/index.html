@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Chat Analysis</title>
+    <title>BES:PDFRAG_Chat </title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -12,6 +12,7 @@
         <div class="mb-4">
             <div class="flex border-b">
                 <button class="py-2 px-4 text-blue-500 border-b-2 border-blue-500 tab-btn active" onclick="switchTab('chat')">Chat</button>
+                <button class="py-2 px-4 hover:text-blue-500 tab-btn" onclick="switchTab('history')">History</button>
                 <button class="py-2 px-4 hover:text-blue-500 tab-btn" onclick="switchTab('system-prompt')">System Prompt</button>
             </div>
         </div>
@@ -20,7 +21,7 @@
         <div id="chat-tab" class="tab-content">
             <!-- File Upload -->
             <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h2 class="text-xl font-semibold mb-4">Upload PDF</h2>
+                <h2 class="text-xl font-semibold mb-4">BES:PDFRAG_Chat</h2>
                 <form id="uploadForm" class="space-y-4">
                     <div class="flex items-center space-x-4">
                         <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
@@ -34,7 +35,7 @@
             <div class="bg-white p-6 rounded-lg shadow-md">
                 <div class="mb-4">
                     <select id="collectionSelect" class="w-full p-2 border rounded mb-4">
-                        <option value="">Choose PDF</option>
+                        <option value="">Choose PDF:</option>
                         {% for collection in collections %}
                         <option value="{{ collection.collection_name }}" data-pc="{{ collection.pages_count }}">
                             {{ collection.filename }}
@@ -61,6 +62,16 @@
             </div>
         </div>
 
+        <!-- History Tab -->
+        <div id="history-tab" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Conversation History</h2>
+                <div id="historyMessages" class="h-[32rem] overflow-y-auto space-y-4">
+                    <!-- History messages will be inserted here -->
+                </div>
+            </div>
+        </div>
+
         <!-- System Prompt Tab -->
         <div id="system-prompt-tab" class="tab-content hidden">
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -74,6 +85,8 @@
     </div>
 
     <script>
+        let currentHistory = [];
+
         // Tab Switching
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
@@ -81,6 +94,48 @@
             
             document.getElementById(`${tabName}-tab`).classList.remove('hidden');
             event.currentTarget.classList.add('text-blue-500', 'border-b-2', 'border-blue-500');
+
+            if (tabName === 'history') {
+                loadHistory();
+            }
+        }
+
+        // Load Conversation History
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const data = await response.json();
+                currentHistory = data.history;
+                displayHistory();
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Display History
+        function displayHistory() {
+            const historyDiv = document.getElementById('historyMessages');
+            historyDiv.innerHTML = '';
+
+            currentHistory.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'border-b pb-4 mb-4';
+                
+                const timestamp = new Date(msg.timestamp).toLocaleString();
+                const pagesUsed = msg.pages_used.length ? `Pages used: ${msg.pages_used.join(', ')}` : '';
+                
+                messageDiv.innerHTML = `
+                    <div class="text-sm text-gray-500 mb-1">${timestamp}</div>
+                    <div class="font-medium mb-2">Q: ${msg.query}</div>
+                    <div class="pl-4 border-l-4 border-blue-500">A: ${msg.response}</div>
+                    ${pagesUsed ? `<div class="text-sm text-gray-500 mt-2">${pagesUsed}</div>` : ''}
+                `;
+                
+                historyDiv.appendChild(messageDiv);
+            });
+
+            // Scroll to bottom
+            historyDiv.scrollTop = historyDiv.scrollHeight;
         }
 
         // File Upload
@@ -153,6 +208,14 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        // Handle Enter key in chat input
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
         // System Prompt
         async function updateSystemPrompt() {
             const prompt = document.getElementById('systemPrompt').value;
@@ -182,6 +245,9 @@
             .then(data => {
                 document.getElementById('systemPrompt').value = data.prompt;
             });
+
+        // Load initial history
+        loadHistory();
     </script>
 </body>
 </html>

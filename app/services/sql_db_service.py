@@ -52,17 +52,33 @@ class DatabaseService:
             raise
         
     def text_search(self, db_name, search_word):
+        """Simple exact text matching search, used only for direct matching"""
         try:
-            query = sql.SQL(f"SELECT * FROM {db_name} WHERE content ILIKE %s")
-            self.cursor.execute(query, (f"%{search_word}%",))
+            # Extract main search terms if they exist (e.g., "CAM", "FPD")
+            search_term = search_word.lower()
+            
+            query = f"SELECT * FROM {db_name} WHERE LOWER(content) LIKE %s"
+            params = [f"%{search_term}%"]
+            
+            logger.info(f"Executing SQL text search with term: {search_term}")
+            self.cursor.execute(query, params)
+            
             rows = self.cursor.fetchall()
             results = []
+            
             if rows:
                 for row in rows:
-                    id, page_number, content, image, ts  = row
-                    results.append({"page_number": page_number, "text": content})
+                    id, page_number, content, image, ts = row
+                    results.append({
+                        "page_number": page_number, 
+                        "text": content
+                    })
+                logger.info(f"Text search found {len(results)} results on pages: {[r['page_number'] for r in results]}")
             else:
-                logger.info("No records found")
+                logger.info("Text search found no results")
+                
             return results
+            
         except Exception as e:
-            logger.error(f"Error searching text: {str(e)}")
+            logger.error(f"Error in text search: {str(e)}")
+            return []

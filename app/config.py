@@ -28,26 +28,39 @@ class Config:
     
     # Model settings
     EMBEDDING_MODEL = "text-embedding-ada-002"
-    CHAT_MODEL = "gpt-4o"
+    CHAT_MODEL = "gpt-4o" # Keep gpt-4o model
     VISION_MODEL = "gemini-2.0-flash"  # Keep Gemini model
     
     # Rate limiting settings
-    MAX_TOKENS_PER_REQUEST = 800  # Set to 800 tokens
+    MAX_TOKENS_PER_REQUEST = 1600  # Increased from 800
     MAX_CONCURRENT_REQUESTS = 3
     
     # PDF processing settings
     CHUNK_SIZE = 50
-    MAX_TOKENS = 800  # Also update this to match
+    MAX_TOKENS = 1600  # Also increased to match
+    TOP_K = 15  # Show up to 15 relevant pages
     
     # System prompt template
-    SYSTEM_PROMPT = """You are an expert assistant analyzing technical documentation and drawings.
-    Analyze the provided content carefully and provide detailed, accurate responses.
-    If you see technical drawings, focus on identifying and explaining key components and their relationships.
-    Base your responses only on the information available in the provided content."""
+    SYSTEM_PROMPT = """You are a retrieval augmented generation agent specialized in analyzing technical drawings and diagrams of electrical infrastructure systems. When analyzing drawings:
+    1. Be thorough and methodical - scan the entire drawing systematically
+    2. Pay special attention to:
+       - All device symbols and their labels (CAM, FPD, decoders, etc.)
+       - Room numbers and names
+       - Device locations and their spatial relationships
+       - Connections and wiring between devices
+       - Notes, legends, and annotations
+    3. When counting elements:
+       - Count ALL instances, not just the obvious ones
+       - Verify the count multiple times
+       - Specify exact locations of each element
+    4. When describing locations:
+       - Give precise room numbers/names
+       - Describe relative positions (e.g., "near the north wall", "adjacent to")
+       - Reference nearby landmarks or other devices
+    
+    Base your responses solely on the visible content in the drawings - do not make assumptions or add external information. Always provide specific page references and be explicit about uncertainty if something is unclear."""
     
     # Flask settings
     SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(24))
     MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5 GB file limit
     UPLOAD_FOLDER = "uploads"
-    
-    TOP_K = 3
