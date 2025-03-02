@@ -10,11 +10,14 @@ class Config:
     UPLOAD_FOLDER = BASE_DIR / "uploads"
     CHUNKS_FOLDER = BASE_DIR / "chunks"
     LOGS_FOLDER = BASE_DIR / "logs"
+    IMAGES_FOLDER = BASE_DIR / "images"
+    
     
     # Створюємо необхідні директорії
     UPLOAD_FOLDER.mkdir(exist_ok=True)
     CHUNKS_FOLDER.mkdir(exist_ok=True)
     LOGS_FOLDER.mkdir(exist_ok=True)
+    IMAGES_FOLDER.mkdir(exist_ok=True)
     
     # API ключі та налаштування бази
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -28,7 +31,7 @@ class Config:
     CHAT_MODEL = "gpt-4o"  # опенаі модель
     
     # Налаштування обробки PDF
-    CHUNK_SIZE = 50
+    CHUNK_SIZE = 25
     MAX_TOKENS = 8000
     
     # Налаштування Flask
@@ -36,4 +39,4 @@ class Config:
     MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5 GB ліміт на файли
     UPLOAD_FOLDER = "uploads"
     
-    TOP_K = 20
+    TOP_K = 5

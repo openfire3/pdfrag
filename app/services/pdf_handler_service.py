@@ -8,13 +8,16 @@ from nltk.tokenize import sent_tokenize
 import nltk
 from pdf2image import convert_from_path
 from PIL import Image
-Image.MAX_IMAGE_PIXELS = None
+import base64
+import io
 
 from app.config import Config
 from app.logger_config import logger
 from .vector_db_service import QuadrantService
 from .sql_db_service import DatabaseService
 from .embbedding_service import EmbeddingService
+
+Image.MAX_IMAGE_PIXELS = None
 
 nltk.download('punkt')
 
@@ -115,6 +118,7 @@ class PDFHandler():
         collection_name = f"pdf123_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
         
         vector_db_service.create_collection(collection_name)
+        sql_db_service.create_table(collection_name)
 
         with open(pdf_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
@@ -133,8 +137,6 @@ class PDFHandler():
             'pages_count': total_pages,
             'size_bytes': file_size
         }
-        
-        sql_db_service.create_table(collection_name)
 
         chunks = self.split_pdf(str(pdf_path))
         for chunk_path, start_page, end_page in chunks:
@@ -167,8 +169,19 @@ class PDFHandler():
                         embedding = emmedding_service.get_embedding(chunk_text)
                         
                         vector_db_service.save_point(collection_name, embedding, page_num, chunk_text, chunk_part, len(sub_chunks), metadata)
-                        image_bytes = images[page_num - 1].tobytes()
-                        sql_db_service.save_record(collection_name, page_num, text, image_bytes)
+                        
+                        # Convert image to desired format and quality
+                        img = images[page_num - 1]
+                        image_format="JPEG"
+                        quality=85
+                        img_buffer = io.BytesIO()
+                        img.save(img_buffer, format=image_format, quality=quality)
+                        img_binary = img_buffer.getvalue()
+                        
+                        # Create base64 encoding for the analyze_image function
+                        img_base64 = base64.b64encode(img_binary).decode('utf-8')
+                        # image_bytes = images[page_num - 1].tobytes()
+                        sql_db_service.save_record(collection_name, page_num, text, img_base64)
                         
                         logger.info(f"Processed part {chunk_part} of page {page_num}: {page_num - start_page + 1} of {total_pages}")
                         

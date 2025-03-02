@@ -1,15 +1,19 @@
 import os
 from openai import OpenAI
+import base64
 
 from app.config import Config
 from app.logger_config import logger
 from .sql_db_service import DatabaseService
 from .embbedding_service import EmbeddingService
 from .vector_db_service import QuadrantService
+from .image_analyzer_service import ImageAnalyzer
+# from explorations.imgv2 import ImageAnalyzer
 
 sql_db_service = DatabaseService()
 vector_db_service = QuadrantService()
 embedding_service = EmbeddingService()
+image_analyzer = ImageAnalyzer()
 
 class ReplyService():
     def __init__(self):
@@ -22,12 +26,19 @@ class ReplyService():
         if search_word:
             logger.info(f"Text search in {collection_name}")
             text_results = sql_db_service.text_search(collection_name, search_word)
+            all_images_analyzis_results = []
+            for row in text_results[:top_k]:
+                img_data = base64.b64decode(row['image'])
+                image_analyzis_result = image_analyzer.analyze_image(img_data, query)
+                all_images_analyzis_results.append((row['page_number'], image_analyzis_result))
+            # ])
             text_search = "\n\n".join([
-            f"Page number {row['page_number']}:\n{row['text']}"
-            for row in text_results[:top_k]
+            f"Page number {res[0]}:\n{res[1]}"
+            for res in all_images_analyzis_results
             ])
+            logger.info(f"Images analyzis returned this reply: {text_search}")
             prompt_start = f"""Pages: {text_search}.
-            Search for element {search_word}. Most likely you'll find it on each provided page"""
+            """
         else:
             logger.info(f"Semantic search in {collection_name}")
 
@@ -52,7 +63,7 @@ class ReplyService():
                     {
                         "role": "system",
                         # "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
-                        "content": "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages from document. Provide accurate and specific answers based on the text you can read on pages."
+                        "content": "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages from document. Provide accurate and specific answers based on the text you can read on pages or image analyzis of this page."
                     },
                     {
                         "role": "user",

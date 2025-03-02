@@ -31,7 +31,7 @@ class DatabaseService:
                         id SERIAL PRIMARY KEY,
                         page_number INTEGER NOT NULL,
                         content TEXT,
-                        image BYTEA,
+                        image TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -40,11 +40,14 @@ class DatabaseService:
             logger.error(f"Error creating table {table_name}: {str(e)}")   
     
     def save_record(self, table_name, page_num, text, image):
-        self.cursor.execute(
-            f"INSERT INTO {table_name} (page_number, content, image) VALUES (%s, %s, %s)",
-            (page_num, text, image)
-        )
-        logger.info(f"Added page {page_num} to {table_name}")
+        try:
+            self.cursor.execute(
+                f"INSERT INTO {table_name} (page_number, content, image) VALUES (%s, %s, %s)",
+                (page_num, text, image)
+            )
+            logger.info(f"Added page {page_num} to {table_name}")
+        except Exception as e:
+            logger.error(f"Error writing to sql db: {str(e)}")
         
     def text_search(self, db_name, search_word):
         try:
@@ -55,7 +58,7 @@ class DatabaseService:
             if rows:
                 for row in rows:
                     id, page_number, content, image, ts  = row
-                    results.append({"page_number": page_number, "text": content})
+                    results.append({"page_number": page_number, "text": content, "image": image})
             else:
                 logger.info("No records found")
             return results

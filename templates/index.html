@@ -82,7 +82,7 @@
             const statusDiv = document.getElementById('uploadStatus');
 
             formData.append('file', fileInput.files[0]);
-            statusDiv.textContent = 'Завантаження...';
+            statusDiv.textContent = 'Uploading...';
 
             try {
                 const response = await fetch('/upload', {
@@ -93,13 +93,13 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    statusDiv.textContent = 'Файл успішно завантажено!';
+                    statusDiv.textContent = 'File succesfully downloaded!';
                     // location.reload(); // Оновлюємо сторінку для оновлення списку
                 } else {
-                    statusDiv.textContent = `Помилка: ${data.error}`;
+                    statusDiv.textContent = `Error: ${data.error}`;
                 }
             } catch (error) {
-                statusDiv.textContent = `Помилка: ${error.message}`;
+                statusDiv.textContent = `Error: ${error.message}`;
             }
         };
 
@@ -114,7 +114,7 @@
             const searchedElement = document.getElementById('searchedElement').value;
 
 
-            responseDiv.textContent = 'Шукаємо...';
+            responseDiv.textContent = 'Searching...';
             resultsDiv.classList.remove('hidden');
 
             try {
@@ -131,10 +131,10 @@
                 if (response.ok) {
                     responseDiv.innerHTML = data.response;
                 } else {
-                    responseDiv.textContent = `Помилка: ${data.error}`;
+                    responseDiv.textContent = `Error: ${data.error}`;
                 }
             } catch (error) {
-                responseDiv.textContent = `Помилка: ${error.message}`;
+                responseDiv.textContent = `Error: ${error.message}`;
             }
         }
 
@@ -143,7 +143,7 @@
             const pagesCount =  this.options[this.selectedIndex].getAttribute("data-pc");
 
             let pageRangeStart = document.getElementById("pageRangeStart");
-            pageRangeStart.innerHTML = ""; // Очищаем старые опции
+            pageRangeStart.innerHTML = ""; 
 
             for (let i = 1; i <= pagesCount; i++) {
                 let option = document.createElement("option");
@@ -154,7 +154,7 @@
             }
 
             let pageRangeEnd = document.getElementById("pageRangeEnd");
-            pageRangeEnd.innerHTML = ""; // Очищаем старые опции
+            pageRangeEnd.innerHTML = ""; 
 
             for (let i = 1; i <= pagesCount; i++) {
                 let option = document.createElement("option");
@@ -166,8 +166,6 @@
                 }
                 pageRangeEnd.appendChild(option);
             }
-
-            // Здесь можно вызвать AJAX-запрос, обновить страницу или выполнить другое действие
         });
     </script>
 </body>
