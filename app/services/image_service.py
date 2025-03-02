@@ -17,15 +17,15 @@ class ImageService:
     
     def convert_pdf_pages(self, pdf_path, start_page=None, end_page=None):
         """
-        Convert PDF pages to images with size limit of 1MB per image.
+        Convert PDF pages to images maintaining original quality.
         Processes pages in batches for better performance.
         """
         try:
             total_pages = end_page - start_page + 1 if start_page and end_page else None
             logger.info(f"Starting PDF conversion of {total_pages} pages from {pdf_path}")
             
-            # Process in batches of 20 pages for better performance
-            BATCH_SIZE = 6
+            # Process in batches of 5 pages for better performance
+            BATCH_SIZE = 5
             image_paths = []
             current_start = start_page if start_page else 1
             
@@ -33,13 +33,13 @@ class ImageService:
                 current_end = min(current_start + BATCH_SIZE - 1, end_page if end_page else float('inf'))
                 logger.info(f"Converting batch: pages {current_start}-{current_end} of {total_pages}")
                 
-                # Convert batch of pages
+                # Convert batch of pages with higher DPI for better quality
                 batch_images = convert_from_path(
                     pdf_path,
                     first_page=current_start,
                     last_page=current_end,
-                    dpi=120,
-                    thread_count=6
+                    dpi=200,  # Increased DPI for better quality
+                    thread_count=5
                 )
                 
                 # Process and save each image in the batch
@@ -47,18 +47,7 @@ class ImageService:
                     page_num = current_start + i
                     image_path = os.path.join(self.images_dir, f'page_{page_num}.jpg')
                     
-                    # Calculate image scaling if needed
-                    width, height = image.size
-                    pixel_count = width * height
-                    target_pixel_count = 1024 * 1024 * 4  # ~1MB target
-                    
-                    if pixel_count > target_pixel_count:
-                        scale_factor = math.sqrt(target_pixel_count / pixel_count)
-                        new_width = int(width * scale_factor)
-                        new_height = int(height * scale_factor)
-                        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    
-                    # Save image with fixed quality
+                    # Save image with maximum quality
                     image.save(image_path, 'JPEG', quality=90)
                     image_paths.append(image_path)
                     
