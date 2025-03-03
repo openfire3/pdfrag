@@ -4,14 +4,19 @@ FROM python:3.9-slim
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем зависимости
-COPY requirements.txt .
-
-# Устанавливаем зависимости
+# Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-    && pip install --no-cache-dir -r requirements.txt
+    poppler-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем зависимости
+COPY requirements.txt .
+
+# Устанавливаем Python-зависимости
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем исходный код приложения
 COPY . .
