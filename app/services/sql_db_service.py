@@ -17,7 +17,7 @@ class DatabaseService:
     def __init__(self):
         try:
             conn = psycopg2.connect(**DB_CONFIG)
-        
+            logger.info("Connected to PostgreSQL")
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             
             self.cursor = conn.cursor()
