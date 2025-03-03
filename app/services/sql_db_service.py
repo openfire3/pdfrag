@@ -51,6 +51,8 @@ class DatabaseService:
         
     def text_search(self, db_name, search_word):
         try:
+            if not db_name:
+                logger.log("Choose PDF")
             query = sql.SQL(f"SELECT * FROM {db_name} WHERE content ILIKE %s")
             self.cursor.execute(query, (f"%{search_word}%",))
             rows = self.cursor.fetchall()
