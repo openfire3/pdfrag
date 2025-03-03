@@ -11,11 +11,13 @@ from app.logger_config import logger
 class QuadrantService():
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # self.qdrant_client = QdrantClient(
+        #     url=Config.QDRANT_PATH,
+        #     api_key=Config.QDRANT_API_KEY
+        # )
         self.qdrant_client = QdrantClient(
-            # host=Config.QDRANT_HOST,
-            # port=Config.QDRANT_PORT
-            url=Config.QDRANT_PATH,
-            api_key=Config.QDRANT_API_KEY
+            host=os.getenv("QDRANT_HOST"),  # Имя сервиса Qdrant
+            port=int(os.getenv("QDRANT_PORT")),  # Порт Qdrant
         )
     
     def get_collections(self) -> List[Dict[str, Any]]:
