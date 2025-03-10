@@ -4,6 +4,7 @@ from openai import OpenAI
 import os
 
 from app.logger_config import logger
+from app.config import Config
 
 class ImageAnalyzer:
     def __init__(self):
@@ -43,13 +44,39 @@ class ImageAnalyzer:
             #     ]
             # )
             # return response.text
+            standardized_question = f"""Analyze this technical drawing systematically, focusing on equipment and devices:
+                1. Task: {prompt}
+
+                2. Required steps:
+                - Examine the entire drawing methodically, section by section
+                - Focus on device symbols (CAM, FPD, etc.) and their labels
+                - Note room numbers and names for precise locations
+                - Look for any connecting elements or relationships
+                
+                3. For each device found:
+                - List its exact location (room number/name and position)
+                - Note any nearby reference points
+                - Describe its orientation or direction if relevant
+
+                4. Additional requirements:
+                - Double-check all findings
+                - Report uncertainty if any areas are unclear
+                - Be specific about room numbers and names
+                - Count elements multiple times to ensure accuracy
+                - Report exact positions using available landmarks
+
+                Remember to be thorough and systematic in the analysis."""
             response = self.client.chat.completions.create(
                 model="gemini-2.0-flash",
                 messages=[
                     {
+                            "role": "system",
+                            "content": Config.SYSTEM_PROMPT_FOR_IMAGE_ANALYSIS
+                        },
+                    {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": prompt},
+                            {"type": "text", "text": standardized_question},
                             {
                                 "type": "image_url",
                                 "image_url": {

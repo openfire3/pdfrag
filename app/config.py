@@ -30,6 +30,18 @@ class Config:
     EMBEDDING_MODEL = "text-embedding-3-small"
     CHAT_MODEL = "gpt-4o"  # опенаі модель
     
+    SYSTEM_PROMPT = "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages with descriptions from document. Provide accurate and specific answers based on image analyzis of this page."
+    SYSTEM_PROMPT_FOR_IMAGE_ANALYSIS = """You are a retrieval augmented generation agent specialized in analyzing technical drawings and diagrams of electrical infrastructure systems. When analyzing drawings:
+    1. Be thorough and methodical - scan the entire drawing systematically
+    2. Pay special attention to:
+       - All device symbols and their labels (CAM, FPD, decoders, etc.)
+       - Room numbers and names
+       - Device locations and their spatial relationships
+       - Connections and wiring between devices
+       - Notes, legends, and annotations
+    
+    Base your responses solely on the visible content in the drawings - do not make assumptions or add external information. Always provide specific page references and be explicit about uncertainty if something is unclear."""
+    
     # Налаштування обробки PDF
     CHUNK_SIZE = 25
     MAX_TOKENS = 8000

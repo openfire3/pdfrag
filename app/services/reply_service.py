@@ -18,7 +18,20 @@ image_analyzer = ImageAnalyzer()
 class ReplyService():
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
+    def extract_div_content(self, text):
+        
+        start_index = text.find("<div>")
+        
+        if start_index == -1:
+            return ""
+        
+        end_index = text.rfind("</div>")
+        
+        if end_index == -1:
+            return ""
+        
+        return text[start_index:end_index + 6]
+
     def answer(self, query: str, collection_name: str, page_range_start, page_range_end, search_word) -> str:
         
         top_k = Config.TOP_K
@@ -63,14 +76,14 @@ class ReplyService():
                     {
                         "role": "system",
                         # "content": "Ти є експертом з аналізу технічної документації та креслень. Надавай точні та конкретні відповіді на основі наданого контексту."
-                        "content": "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages from document. Provide accurate and specific answers based on the text you can read on pages or image analyzis of this page."
+                        "content": Config.SYSTEM_PROMPT
                     },
                     {
                         "role": "user",
                         # "content": f"Контекст:\n{context}\n\nЗапит: {query}\n\n"
                         #          f"Надай детальну відповідь використовуючи тільки інформацію з контексту."
                         "content": f"{prompt_start}\n\nQuery: {query}\n\n"
-                                  f"Provide a detailed answer using only the information from the context. List pages that were analyzed and don't forget to tell on which pages you found relevant info.. Reply with structured HTML, start only from opening container <div> from the very beginning ending with closing </div> tag."
+                                  f"Provide a detailed answer using only the information from the context. List pages that were analyzed and don't forget to tell on which pages you found relevant info. Reply with structured HTML, start only from opening container <div> from the very beginning ending with closing </div> tag."
                                   f"""Example:
                                   <div>
                                   <p>I have recieved and analyzed these pages: <b>2</b>, <b>12</b>, <b>33</b>, ...(list all pages in context)</p>
@@ -82,12 +95,14 @@ class ReplyService():
                                   ...
                                   <hr/>
                                   <h2><b>Conclusion</b></h2>
-                                  <p>There re some...</p>"""
+                                  <p>There re some...</p>
+                                  </div>
+                                  """
                     }
                 ]
             )
-            response_html = response.choices[0].message.content[7:-3]
-            logger.info(f"Got response: {response_html}")
+            response_html = self.extract_div_content(response.choices[0].message.content)
+            logger.info(f"Got response: {response.choices[0].message.content}")
             return response_html
             
         except Exception as e:
