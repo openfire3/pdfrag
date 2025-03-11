@@ -110,12 +110,10 @@ class PDFHandler():
             logger.error(f"Error splitting PDF: {str(e)}")
             raise
 
-    def process_pdf(self, pdf_path: str) -> str:
+    def process_pdf(self, pdf_path: str, collection_name: str) -> str:
         pdf_path = Path(pdf_path)
         file_size = pdf_path.stat().st_size
         logger.info(f"Starting process {pdf_path.name} (size: {file_size/1024/1024:.2f} MB)")
-        
-        collection_name = f"pdf123_{pdf_path.stem}_{uuid.uuid4().hex[:8]}"
         
         vector_db_service.create_collection(collection_name)
         sql_db_service.create_table(collection_name)
@@ -128,11 +126,9 @@ class PDFHandler():
             pdf_path
         )
         logger.info(f"{len(images)} images succesfully extracted")
-        
-        pdf_name = Path(pdf_path.name).stem
 
         metadata = {
-            'filename': pdf_name,
+            'filename': collection_name,
             'created_at': datetime.now().isoformat(),
             'pages_count': total_pages,
             'size_bytes': file_size

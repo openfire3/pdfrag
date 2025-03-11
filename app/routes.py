@@ -25,6 +25,7 @@ def upload_file():
         return jsonify({'error': 'File not found'}), 400
         
     file = request.files['file']
+    collection_name = request.form.get('collection_name')
     if file.filename == '':
         return jsonify({'error': 'No file chosen'}), 400
         
@@ -37,17 +38,7 @@ def upload_file():
         file.save(filepath)
         logger.info(f"File {file.filename} is ready to processing")
         # Обробка PDF
-        # collection_name = processor.process_pdf(filepath)
-        collection_name = pdf_processor.process_pdf(filepath)
-        
-        # Зберігаємо інформацію про оброблений PDF
-        # pdf_info = ProcessedPDF(
-        #     filename=filename,
-        #     collection_name=collection_name,
-        #     created_at=datetime.now(),
-        #     pages_count=len(PyPDF2.PdfReader(filepath).pages),
-        #     size_bytes=os.path.getsize(filepath)
-        # )
+        collection_name = pdf_processor.process_pdf(filepath, collection_name)
         
         return jsonify({
             'success': True,

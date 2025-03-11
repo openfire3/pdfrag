@@ -29,6 +29,7 @@ class Config:
     # Налаштування моделей
     EMBEDDING_MODEL = "text-embedding-3-small"
     CHAT_MODEL = "gpt-4o"  # опенаі модель
+    IMAGES_RECOGNITION_MODEL = "gemini-2.0-flash"  
     
     SYSTEM_PROMPT = "You are an expert in analyzing technical documentation and drawings. You recieve a list of pages with descriptions from document. Provide accurate and specific answers based on image analyzis of this page."
     SYSTEM_PROMPT_FOR_IMAGE_ANALYSIS = """You are a retrieval augmented generation agent specialized in analyzing technical drawings and diagrams of electrical infrastructure systems. When analyzing drawings:

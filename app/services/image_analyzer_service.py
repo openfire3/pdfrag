@@ -8,13 +8,14 @@ from app.config import Config
 
 class ImageAnalyzer:
     def __init__(self):
-        # Configure Google Generative AI
         # genai.configure(api_key="AIzaSyA6VAI5qzNfsMnCr3c5X4z5X7LkQNji6-I")
-        # self.client = genai.GenerativeModel('gemini-2.0-flash')  # Use the updated model
+        # self.client = genai.GenerativeModel('gemini-2.0-flash')
+        
         self.client = OpenAI(
             api_key=os.getenv("GOOGLE_API_KEY"),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
+        # self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     def analyze_image(self, image_data, prompt="What is on this page?"):
         try:
@@ -28,10 +29,7 @@ class ImageAnalyzer:
 
             # Encode the image data as base64
             base64_image = base64.b64encode(image_data).decode('utf-8')
-            # Send the image and prompt to the Gemini API
-            # logger.info("###############")
-            # logger.info(base64_image)
-            
+            # Send the image and prompt to the Gemini API            
             # response = self.client.generate_content(
             #     contents=[
             #         {
@@ -67,7 +65,7 @@ class ImageAnalyzer:
 
                 Remember to be thorough and systematic in the analysis."""
             response = self.client.chat.completions.create(
-                model="gemini-2.0-flash",
+                model=Config.IMAGES_RECOGNITION_MODEL,
                 messages=[
                     {
                             "role": "system",

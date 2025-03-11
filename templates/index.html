@@ -17,6 +17,7 @@
             <form id="uploadForm" class="space-y-4">
                 <div class="flex items-center space-x-4">
                     <input type="file" accept=".pdf" class="border p-2 rounded" id="pdfFile" name="file">
+                    <input type="text" class="border p-2 rounded" placeholder="Enter collection name" name="collection_name" id="collectionName">
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                         Upload
                     </button>
@@ -79,9 +80,15 @@
             e.preventDefault();
             const formData = new FormData();
             const fileInput = document.getElementById('pdfFile');
+            const collectionName = document.getElementById('collectionName').value;
+            if (!collectionName) {
+                alert('Please enter collection name');
+                return;
+            }
             const statusDiv = document.getElementById('uploadStatus');
-
+            console.log("cn", collectionName)
             formData.append('file', fileInput.files[0]);
+            formData.append('collection_name', collectionName);
             statusDiv.textContent = 'Uploading...';
 
             try {
@@ -93,7 +100,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    statusDiv.textContent = 'File succesfully downloaded!';
+                    statusDiv.textContent = 'File succesfully downloaded! Refresh page to see it in the list';
                     // location.reload(); // Оновлюємо сторінку для оновлення списку
                 } else {
                     statusDiv.textContent = `Error: ${data.error}`;
@@ -106,6 +113,10 @@
         // Пошук
         async function search() {
             const collection = document.getElementById('collectionSelect').value;
+            if (!collection) {
+                alert('Please choose a PDF file');
+                return;
+            }
             const query = document.getElementById('queryInput').value;
             const resultsDiv = document.getElementById('results');
             const responseDiv = document.getElementById('responseText');
